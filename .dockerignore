@@ -1,0 +1,12 @@
+.git
+.github
+.vscode
+**/bin/
+**/obj/
+**/TestResults/
+**/*.user
+**/*.suo
+**/*.nupkg
+*.md
+docs/
+infrastructure/terraform/
