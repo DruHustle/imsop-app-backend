@@ -1,0 +1,119 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-and-test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8.0
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Restore Dependencies
+        run: dotnet restore src/IMSOP.sln
+
+      - name: Build Solution
+        run: dotnet build src/IMSOP.sln --no-restore --configuration Release
+
+      - name: Run Tests
+        run: dotnet test src/IMSOP.sln --no-build --verbosity normal --configuration Release
+
+  docker-build-push:
+    name: Docker Build and Push
+    needs: build-and-test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: IMSOP.Gateway
+            image: imsop-gateway
+            dockerfile: infrastructure/docker/Gateway.Dockerfile
+          - service: IMSOP.OperationsService
+            image: imsop-operationsservice
+            dockerfile: infrastructure/docker/OperationsService.Dockerfile
+          - service: IMSOP.SupplyChainService
+            image: imsop-supplychainservice
+            dockerfile: infrastructure/docker/SupplyChainService.Dockerfile
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set ACR Registry
+        id: registry
+        run: echo "login_server=${{ vars.ACR_LOGIN_SERVER || 'imsop.azurecr.io' }}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Check ACR credentials
+        id: acr
+        run: |
+          if [ -n "${{ secrets.ACR_USERNAME }}" ] && [ -n "${{ secrets.ACR_PASSWORD }}" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "ACR credentials are missing. Skipping image push."
+          fi
+
+      - name: Login to Azure Container Registry
+        id: acr-login
+        if: steps.acr.outputs.enabled == 'true'
+        continue-on-error: true
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ steps.registry.outputs.login_server }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+
+      - name: Validate ACR login
+        id: acr-auth
+        if: steps.acr.outputs.enabled == 'true'
+        run: |
+          if [ "${{ steps.acr-login.outcome }}" = "success" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "ACR login failed. Check ACR_USERNAME/ACR_PASSWORD secrets and ACR credentials."
+          fi
+
+      - name: Check Dockerfile
+        id: dockerfile
+        run: |
+          if [ -f "${{ matrix.dockerfile }}" ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "Dockerfile not found: ${{ matrix.dockerfile }}. Skipping ${{ matrix.service }}."
+          fi
+
+      - name: Build and Push Docker Image
+        if: steps.acr.outputs.enabled == 'true' && steps.acr-auth.outputs.enabled == 'true' && steps.dockerfile.outputs.exists == 'true'
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: |
+            ${{ steps.registry.outputs.login_server }}/${{ matrix.image }}:${{ github.sha }}
+            ${{ steps.registry.outputs.login_server }}/${{ matrix.image }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
