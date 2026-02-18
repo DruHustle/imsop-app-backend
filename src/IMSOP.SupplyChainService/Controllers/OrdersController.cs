@@ -14,12 +14,18 @@ namespace IMSOP.SupplyChainService.Controllers
         private readonly ApplicationDbContext _context;
         private readonly ServiceBusClient _serviceBusClient;
         private readonly IConfiguration _configuration;
+        private readonly ILogger<OrdersController> _logger;
 
-        public OrdersController(ApplicationDbContext context, ServiceBusClient serviceBusClient, IConfiguration configuration)
+        public OrdersController(
+            ApplicationDbContext context,
+            ServiceBusClient serviceBusClient,
+            IConfiguration configuration,
+            ILogger<OrdersController> logger)
         {
             _context = context;
             _serviceBusClient = serviceBusClient;
             _configuration = configuration;
+            _logger = logger;
         }
 
         [HttpPost]
@@ -41,10 +47,29 @@ namespace IMSOP.SupplyChainService.Controllers
             await _context.SaveChangesAsync();
 
             // 3. Decoupling & Queuing (Azure Service Bus)
-            var sender = _serviceBusClient.CreateSender(_configuration["ServiceBus:OrderQueueName"]);
-            var messageBody = JsonConvert.SerializeObject(order);
-            var message = new ServiceBusMessage(messageBody);
-            await sender.SendMessageAsync(message);
+            var serviceBusEnabled = _configuration.GetValue("ServiceBus:Enabled", false);
+            if (serviceBusEnabled)
+            {
+                var queueName = _configuration["ServiceBus:OrderQueueName"];
+                if (string.IsNullOrWhiteSpace(queueName))
+                {
+                    _logger.LogWarning("ServiceBus is enabled, but ServiceBus:OrderQueueName is not configured.");
+                }
+                else
+                {
+                    try
+                    {
+                        var sender = _serviceBusClient.CreateSender(queueName);
+                        var messageBody = JsonConvert.SerializeObject(order);
+                        var message = new ServiceBusMessage(messageBody);
+                        await sender.SendMessageAsync(message);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to enqueue purchase order {OrderId} to Service Bus.", order.Id);
+                    }
+                }
+            }
 
             return Ok(new ApiResponse<PurchaseOrder> { Success = true, Data = order });
         }
