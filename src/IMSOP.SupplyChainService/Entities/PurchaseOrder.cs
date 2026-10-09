@@ -20,6 +20,7 @@ namespace IMSOP.SupplyChainService.Entities
         public Guid SupplierId { get; set; }
 
         [Column("order_number")]
+        [Required]
         [MaxLength(100)]
         public string OrderNumber { get; set; } = string.Empty;
 
@@ -28,6 +29,7 @@ namespace IMSOP.SupplyChainService.Entities
         public string Status { get; set; } = "draft";
 
         [Column("total_amount")]
+        [Range(typeof(decimal), "0.01", "79228162514264337593543950335", ParseLimitsInInvariantCulture = true)]
         public decimal TotalAmount { get; set; }
 
         [Column("created_at")]

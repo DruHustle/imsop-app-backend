@@ -1,0 +1,44 @@
+services:
+  - type: web
+    name: imsop-api
+    runtime: node
+    rootDir: server
+    plan: 0.5c-512mb
+    region: frankfurt
+    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm build
+    preDeployCommand: pnpm db:migrate
+    startCommand: pnpm start
+    healthCheckPath: /ready
+    maxShutdownDelaySeconds: 30
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3001
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ALLOWED_ORIGIN
+        sync: false
+      - key: PASSWORD_RESET_BASE_URL
+        sync: false
+      - key: EMAIL_PROVIDER
+        value: gmail
+      - key: GMAIL_FROM
+        value: notifications.imsop@gmail.com
+      - key: GMAIL_CLIENT_ID
+        sync: false
+      - key: GMAIL_CLIENT_SECRET
+        sync: false
+      - key: GMAIL_REFRESH_TOKEN
+        sync: false
+      - key: GMAIL_APP_PASSWORD
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+      - key: LOGISTICS_WEBHOOK_SECRETS
+        sync: false

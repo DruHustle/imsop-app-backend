@@ -1,0 +1,50 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: imsop-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: imsop
+      MYSQL_USER: imsop
+      MYSQL_PASSWORD: imsop
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: imsop-server
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      ALLOWED_ORIGIN: http://localhost:8080
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: imsop
+      DB_PASSWORD: imsop
+      DB_NAME: imsop
+      JWT_SECRET: change-me-in-production
+      EMAIL_PROVIDER: gmail
+      GMAIL_FROM: notifications.imsop@gmail.com
+      GMAIL_APP_PASSWORD: ${GMAIL_APP_PASSWORD:-}
+      PASSWORD_RESET_BASE_URL: http://localhost:5173/#/reset-password
+      LOGISTICS_WEBHOOK_SECRETS: '{"local-provider":"local-logistics-webhook-secret-change-me-2026"}'
+    ports:
+      - "3001:3001"
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+volumes:
+  mysql_data:

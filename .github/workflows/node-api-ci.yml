@@ -1,0 +1,72 @@
+name: Backend CI/CD
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'server/**'
+      - 'render.yaml'
+      - 'docker-compose.yml'
+      - 'scripts/**'
+      - 'infrastructure/kubernetes/**'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'server/**'
+      - 'render.yaml'
+      - 'docker-compose.yml'
+      - 'scripts/**'
+      - 'infrastructure/kubernetes/**'
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Setup PNPM
+      uses: pnpm/action-setup@v3
+      with:
+        version: 10
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22'
+        cache: 'pnpm'
+        # Ensures cache is invalidated if server dependencies change
+        cache-dependency-path: 'server/pnpm-lock.yaml'
+
+    - name: Install dependencies
+      run: |
+        cd server
+        pnpm install --frozen-lockfile
+
+    - name: Lint
+      run: |
+        cd server
+        # Only runs if 'lint' script exists in server/package.json
+        if grep -q "\"lint\":" package.json; then
+          pnpm lint
+        else
+          echo "No lint script found, skipping..."
+        fi
+
+    - name: Build
+      run: |
+        cd server
+        pnpm build
+
+    - name: Run Tests
+      run: pnpm -C server test
+
+  # Optional: Add a deploy job if you have a target environment
+  # deploy:
+  #   needs: build-and-test
+  #   if: github.ref == 'refs/heads/main'
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Deploy to Production
+  #       run: echo "Deploying backend..."

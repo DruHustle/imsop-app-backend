@@ -1,7 +1,22 @@
+using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.IdentityModel.Tokens;
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
+
+var jwtSecret = builder.Configuration["JWT_SECRET"] ?? "development-only-change-me-32-characters";
+if (!builder.Environment.IsDevelopment() && jwtSecret.Length < 32) throw new InvalidOperationException("JWT_SECRET must contain at least 32 characters.");
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(options => options.TokenValidationParameters = new TokenValidationParameters
+{
+    ValidateIssuer = true, ValidIssuer = "imsop-api", ValidateAudience = true, ValidAudience = "imsop-web",
+    ValidateIssuerSigningKey = true, IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret)), ValidateLifetime = true,
+    ClockSkew = TimeSpan.FromSeconds(30)
+});
+builder.Services.AddAuthorization(options => options.FallbackPolicy = new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build());
 
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
     ?? builder.Configuration["CORS_ALLOWED_ORIGINS"]?
@@ -30,8 +45,10 @@ builder.Services.AddCors(options =>
 var app = builder.Build();
 
 app.UseCors("Frontend");
+app.UseAuthentication();
+app.UseAuthorization();
 
-app.MapGet("/health", () => Results.Ok(new { status = "ok", service = "IMSOP.OperationsService" }));
+app.MapGet("/health", () => Results.Ok(new { status = "ok", service = "IMSOP.OperationsService" })).AllowAnonymous();
 app.MapControllers();
 
 app.Run();

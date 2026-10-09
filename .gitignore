@@ -25,6 +25,11 @@ bld/
 
 # VS Code
 .vscode/
+
+# Node API build and dependencies
+**/node_modules/
+**/dist/
+.pnpm-store/
 !.vscode/settings.json
 !.vscode/tasks.json
 !.vscode/launch.json

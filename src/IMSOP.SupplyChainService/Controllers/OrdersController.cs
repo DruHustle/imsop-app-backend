@@ -4,10 +4,12 @@ using IMSOP.SupplyChainService.Entities;
 using IMSOP.SupplyChainService.Data;
 using Azure.Messaging.ServiceBus;
 using Newtonsoft.Json;
+using Microsoft.AspNetCore.Authorization;
 
 namespace IMSOP.SupplyChainService.Controllers
 {
     [ApiController]
+    [Authorize(Roles = "admin,engineer,analyst")]
     [Route("api/v1/[controller]")]
     public class OrdersController : ControllerBase
     {
@@ -31,7 +33,16 @@ namespace IMSOP.SupplyChainService.Controllers
         [HttpPost]
         public async Task<ActionResult<ApiResponse<PurchaseOrder>>> CreateOrder([FromBody] PurchaseOrder order)
         {
-            // 1. Intake & Validation (Simplified for brevity)
+            if (order.OrganizationId == Guid.Empty)
+            {
+                ModelState.AddModelError(nameof(order.OrganizationId), "OrganizationId is required.");
+            }
+
+            if (order.SupplierId == Guid.Empty)
+            {
+                ModelState.AddModelError(nameof(order.SupplierId), "SupplierId is required.");
+            }
+
             if (!ModelState.IsValid)
             {
                 return BadRequest(new ApiResponse<PurchaseOrder> 
@@ -69,6 +80,23 @@ namespace IMSOP.SupplyChainService.Controllers
                         _logger.LogWarning(ex, "Failed to enqueue purchase order {OrderId} to Service Bus.", order.Id);
                     }
                 }
+            }
+
+            return CreatedAtAction(nameof(GetOrder), new { id = order.Id },
+                new ApiResponse<PurchaseOrder> { Success = true, Data = order });
+        }
+
+        [HttpGet("{id:guid}")]
+        public async Task<ActionResult<ApiResponse<PurchaseOrder>>> GetOrder(Guid id)
+        {
+            var order = await _context.PurchaseOrders.FindAsync(id);
+            if (order is null)
+            {
+                return NotFound(new ApiResponse<PurchaseOrder>
+                {
+                    Success = false,
+                    Error = new ApiError { Code = "ORDER_NOT_FOUND", Message = "Order not found" }
+                });
             }
 
             return Ok(new ApiResponse<PurchaseOrder> { Success = true, Data = order });

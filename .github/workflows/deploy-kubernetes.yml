@@ -1,0 +1,30 @@
+name: Deploy Kubernetes with rollback
+
+on:
+  workflow_dispatch:
+    inputs:
+      image:
+        description: Immutable backend image tag or digest
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure cluster credentials
+        env:
+          KUBE_CONFIG_DATA: ${{ secrets.KUBE_CONFIG_DATA }}
+        run: |
+          test -n "$KUBE_CONFIG_DATA"
+          mkdir -p "$HOME/.kube"
+          printf '%s' "$KUBE_CONFIG_DATA" | base64 --decode > "$HOME/.kube/config"
+          chmod 600 "$HOME/.kube/config"
+      - name: Deploy and rollback on failed health checks
+        env:
+          IMSOP_IMAGE: ${{ inputs.image }}
+        run: bash scripts/deploy-kubernetes.sh
