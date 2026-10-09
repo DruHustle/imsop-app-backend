@@ -19,6 +19,7 @@ namespace IMSOP.SupplyChainService.Data
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+            modelBuilder.HasDefaultSchema("supply_chain");
             
             // Configure multi-tenancy filters, indexes, and relationships based on schema
             modelBuilder.Entity<Organization>().HasIndex(o => o.Name).IsUnique();

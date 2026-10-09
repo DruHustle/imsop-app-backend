@@ -10,8 +10,8 @@ export function getJwtSecret(): string {
 
 export function assertProductionConfiguration(): void {
   getJwtSecret();
-  if (process.env.NODE_ENV === 'production' && !process.env.DATABASE_URL && !process.env.DB_HOST) {
-    throw new Error('DATABASE_URL or DB_HOST must be configured in production');
+  if (process.env.NODE_ENV === 'production' && !process.env.DATABASE_URL) {
+    throw new Error('DATABASE_URL must be configured in production');
   }
   if (process.env.NODE_ENV === 'production' && !process.env.ALLOWED_ORIGIN) {
     throw new Error('ALLOWED_ORIGIN must be configured in production');

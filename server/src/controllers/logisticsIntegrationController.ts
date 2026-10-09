@@ -31,7 +31,7 @@ export async function ingestLogisticsEvent(req: Request, res: Response) {
         latitude: event.location ? String(event.location.latitude) : null,
         longitude: event.location ? String(event.location.longitude) : null,
         estimatedArrival: event.estimatedArrival ? new Date(event.estimatedArrival) : null,
-      }).onDuplicateKeyUpdate({ set: {
+      }).onConflictDoUpdate({ target: shipments.trackingNumber, set: {
         status: event.status,
         carrier: event.carrier,
         transportMode: event.transportMode,

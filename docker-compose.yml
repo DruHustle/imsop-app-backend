@@ -1,22 +1,4 @@
 services:
-  mysql:
-    image: mysql:8.0
-    container_name: imsop-mysql
-    restart: unless-stopped
-    environment:
-      MYSQL_ROOT_PASSWORD: rootpass
-      MYSQL_DATABASE: imsop
-      MYSQL_USER: imsop
-      MYSQL_PASSWORD: imsop
-    healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p$$MYSQL_ROOT_PASSWORD --silent"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 20s
-    volumes:
-      - mysql_data:/var/lib/mysql
-
   postgres:
     image: postgres:17-alpine
     container_name: imsop-postgres
@@ -45,11 +27,7 @@ services:
       NODE_ENV: production
       PORT: 3001
       ALLOWED_ORIGIN: http://localhost:8080
-      DB_HOST: mysql
-      DB_PORT: 3306
-      DB_USER: imsop
-      DB_PASSWORD: imsop
-      DB_NAME: imsop
+      DATABASE_URL: postgresql://imsop:imsop-postgres-local@postgres:5432/imsop_supply_chain
       JWT_SECRET: ${JWT_SECRET:-local-only-jwt-secret-change-before-production-2026}
       EMAIL_PROVIDER: gmail
       GMAIL_FROM: notifications.imsop@gmail.com
@@ -59,7 +37,7 @@ services:
     ports:
       - "3001:3001"
     depends_on:
-      mysql:
+      postgres:
         condition: service_healthy
 
   operations-service:
@@ -88,7 +66,7 @@ services:
       JWT_SECRET: ${JWT_SECRET:-local-only-jwt-secret-change-before-production-2026}
       CORS_ALLOWED_ORIGINS: http://localhost:5173,http://localhost:3000
       ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=imsop_supply_chain;Username=imsop;Password=imsop-postgres-local
-      Database__AutoEnsureCreated: "true"
+      Database__AutoMigrate: "true"
       ServiceBus__Enabled: "false"
     ports:
       - "5102:10000"
@@ -121,5 +99,4 @@ services:
         condition: service_started
 
 volumes:
-  mysql_data:
   postgres_data:

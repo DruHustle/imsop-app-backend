@@ -11,7 +11,7 @@ WORKDIR /src/server
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
 RUN corepack enable
-COPY server/package.json server/pnpm-lock.yaml server/tsconfig.json server/drizzle.config.ts ./
+COPY server/package.json server/pnpm-lock.yaml server/.npmrc server/tsconfig.json server/drizzle.config.ts ./
 COPY server/src ./src
 COPY server/migrations ./migrations
 RUN pnpm install --frozen-lockfile \

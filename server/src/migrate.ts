@@ -1,41 +1,40 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import mysql from 'mysql2/promise';
+import { Pool } from 'pg';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
-function connectionOptions() {
-  const url = process.env.DATABASE_URL ? new URL(process.env.DATABASE_URL) : undefined;
-  return {
-    host: process.env.DB_HOST || url?.hostname || 'localhost',
-    port: Number(process.env.DB_PORT || url?.port || 3306),
-    user: process.env.DB_USER || (url ? decodeURIComponent(url.username) : 'root'),
-    password: process.env.DB_PASSWORD || (url ? decodeURIComponent(url.password) : ''),
-    database: process.env.DB_NAME || (url ? decodeURIComponent(url.pathname.slice(1)) : 'imsop'),
-    multipleStatements: true,
-  };
-}
-
 async function migrate() {
-  const connection = await mysql.createConnection(connectionOptions());
+  const connectionString = process.env.DATABASE_URL
+    || 'postgresql://imsop:imsop-postgres-local@localhost:5432/imsop_supply_chain';
+  const pool = new Pool({ connectionString });
+  const connection = await pool.connect();
   try {
-    await connection.execute(`CREATE TABLE IF NOT EXISTS schema_migrations (
+    await connection.query(`CREATE TABLE IF NOT EXISTS schema_migrations (
       name VARCHAR(255) PRIMARY KEY,
       applied_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
     )`);
     const migrationsDirectory = path.resolve(process.cwd(), 'migrations');
     const files = (await fs.readdir(migrationsDirectory)).filter(file => file.endsWith('.sql')).sort();
     for (const file of files) {
-      const [rows] = await connection.execute('SELECT name FROM schema_migrations WHERE name = ?', [file]);
-      if (Array.isArray(rows) && rows.length > 0) continue;
+      const result = await connection.query('SELECT name FROM schema_migrations WHERE name = $1', [file]);
+      if (result.rowCount) continue;
       const sql = await fs.readFile(path.join(migrationsDirectory, file), 'utf8');
-      await connection.query(sql);
-      await connection.execute('INSERT INTO schema_migrations (name) VALUES (?)', [file]);
-      console.log(`Applied migration ${file}`);
+      await connection.query('BEGIN');
+      try {
+        await connection.query(sql);
+        await connection.query('INSERT INTO schema_migrations (name) VALUES ($1)', [file]);
+        await connection.query('COMMIT');
+        console.log(`Applied migration ${file}`);
+      } catch (error) {
+        await connection.query('ROLLBACK');
+        throw error;
+      }
     }
   } finally {
-    await connection.end();
+    connection.release();
+    await pool.end();
   }
 }
 

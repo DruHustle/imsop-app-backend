@@ -1,6 +1,6 @@
 # Render deployment from a Docker image
 
-IMSOP production uses one supervised backend image so it can be created as a single Render Web Service without a Blueprint. The image contains the public Gateway, Node API, Operations Service, and Supply Chain Service. MySQL and PostgreSQL remain managed databases outside the container.
+IMSOP production uses one supervised backend image so it can be created as a single Render Web Service without a Blueprint. The image contains the public Gateway, Node API, Operations Service, and Supply Chain Service. Every service uses the same managed PostgreSQL database outside the container.
 
 ## Image
 
@@ -29,8 +29,8 @@ Use the immutable SHA tag or digest for production releases and rollback. `lates
 NODE_ENV=production
 ASPNETCORE_ENVIRONMENT=Production
 PORT=10000
-DATABASE_URL=<managed MySQL connection URL>
-ConnectionStrings__DefaultConnection=<managed PostgreSQL connection string>
+DATABASE_URL=<managed PostgreSQL URL, for example postgresql://user:password@host:5432/database>
+ConnectionStrings__DefaultConnection=<the same PostgreSQL database as an Npgsql connection string>
 JWT_SECRET=<at least 32 random characters>
 ALLOWED_ORIGIN=https://imsop-app.vercel.app
 CORS_ALLOWED_ORIGINS=https://imsop-app.vercel.app
@@ -39,7 +39,7 @@ EMAIL_PROVIDER=gmail
 GMAIL_FROM=notifications.imsop@gmail.com
 GMAIL_APP_PASSWORD=<Gmail app password>
 LOGISTICS_WEBHOOK_SECRETS=<JSON copied from server/.env>
-Database__AutoEnsureCreated=true
+Database__AutoMigrate=true
 ServiceBus__Enabled=false
 ```
 

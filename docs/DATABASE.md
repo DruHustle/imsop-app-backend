@@ -1,11 +1,11 @@
 # Database Guide
 
-IMSOP uses two stores because the browser-facing API and .NET microservices are independently deployable:
+IMSOP uses one PostgreSQL database shared by the independently deployable Node API and .NET supply-chain service:
 
-- MySQL: real-user authentication, operational shipments, telemetry, orders and logistics event ingestion for the Node API.
-- PostgreSQL: organizations, users, suppliers, products, warehouses, inventory and purchase orders for the .NET supply-chain service.
+- Lowercase tables are managed by the Node migrations for authentication, operational shipments, telemetry, orders and logistics ingestion.
+- EF Core tables are managed by the .NET supply-chain service for organizations, suppliers, products, warehouses, inventory and purchase orders.
 
-## MySQL entity relationship diagram
+## Node API entity relationship diagram
 
 ```mermaid
 erDiagram
@@ -62,7 +62,7 @@ erDiagram
 
 `LOGISTICS_EVENTS(provider, event_id)` is unique and prevents replayed provider events from being applied twice. Password-reset tokens contain `password_reset_version`; completing a reset increments the version and invalidates previous reset links.
 
-## MySQL migrations
+## Node PostgreSQL migrations
 
 Migrations live in `server/migrations` and are applied lexically:
 
@@ -73,18 +73,18 @@ pnpm build
 pnpm db:migrate
 ```
 
-Render runs the same command as `preDeployCommand`. The runner records applied files in `schema_migrations`.
+The production container runs the same migration command before starting the services. The runner records applied files in `schema_migrations` and applies each file transactionally.
 
 For a disposable local database:
 
 ```bash
-docker compose up -d mysql
-./setup-dev-db.sh
+docker compose up -d postgres
+DATABASE_URL=postgresql://imsop:imsop-postgres-local@localhost:5432/imsop_supply_chain pnpm -C server db:migrate
 ```
 
-Never run `setup-dev-db.sh` against production: it recreates the selected database.
+Never run development seed or reset operations against production.
 
-## PostgreSQL model
+## .NET supply-chain model
 
 ```mermaid
 erDiagram
@@ -99,5 +99,5 @@ erDiagram
     PRODUCTS ||--o{ PURCHASE_ORDER_ITEMS : ordered_as
 ```
 
-Production schema evolution should use EF Core migrations. `Database:AutoEnsureCreated` is disabled by default so service startup cannot mutate production schemas implicitly.
+Production schema evolution uses EF Core migrations in `src/IMSOP.SupplyChainService/Data/Migrations`. Set `Database__AutoMigrate=true` on the supervised Render image so its supply-chain schema is upgraded at startup; it is disabled by default for standalone service deployments.
 

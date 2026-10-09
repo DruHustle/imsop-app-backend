@@ -37,7 +37,7 @@ The system follows a **Microservices Architecture** with a clear separation of c
 *   `/server`: Node.js API used by the React frontend for authentication, logistics ingestion, telemetry, and operations data.
 *   `/infrastructure`: Terraform and Bicep templates for automated Azure provisioning.
 *   `/infrastructure/render`: Single production image packaging for Render's **Existing Image** deployment flow.
-*   `/setup-dev-db.sh` and `/setup-test-db.sh`: Local MySQL database setup.
+*   PostgreSQL is the single database engine for authentication, logistics, telemetry, operations, and supply-chain data.
 *   `/pipelines`: CI/CD workflow definitions for automated testing and deployment.
 *   `/docs`: Detailed deployment guides, API flows, and architectural diagrams.
 

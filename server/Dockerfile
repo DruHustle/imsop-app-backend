@@ -7,7 +7,7 @@ ENV PATH="$PNPM_HOME:$PATH"
 
 RUN corepack enable
 
-COPY package.json pnpm-lock.yaml tsconfig.json drizzle.config.ts ./
+COPY package.json pnpm-lock.yaml .npmrc tsconfig.json drizzle.config.ts ./
 COPY src ./src
 COPY migrations ./migrations
 

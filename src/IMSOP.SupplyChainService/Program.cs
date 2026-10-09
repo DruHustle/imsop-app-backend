@@ -58,12 +58,12 @@ builder.Services.AddSingleton(new ServiceBusClient(serviceBusConn));
 
 var app = builder.Build();
 
-var autoEnsureCreated = app.Configuration.GetValue("Database:AutoEnsureCreated", false);
-if (autoEnsureCreated)
+var autoMigrate = app.Configuration.GetValue("Database:AutoMigrate", false);
+if (autoMigrate)
 {
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    db.Database.EnsureCreated();
+    db.Database.Migrate();
 }
 
 app.UseCors("Frontend");
