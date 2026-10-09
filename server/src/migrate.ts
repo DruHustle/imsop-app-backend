@@ -1,9 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { Pool } from 'pg';
-import dotenv from 'dotenv';
-
-dotenv.config();
+import './config/env';
 
 async function migrate() {
   const connectionString = process.env.DATABASE_URL

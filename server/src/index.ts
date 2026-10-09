@@ -1,8 +1,7 @@
-import dotenv from 'dotenv';
+import './config/env';
 import app from './app';
 import { assertProductionConfiguration } from './config/security';
 
-dotenv.config();
 assertProductionConfiguration();
 
 const port = process.env.PORT || 3001;

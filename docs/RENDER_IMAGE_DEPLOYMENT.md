@@ -25,6 +25,8 @@ Use the immutable SHA tag or digest for production releases and rollback. `lates
 
 ## Required environment
 
+Use `server/.env.prod` as the Render Environment variable checklist. Replace every `REPLACE_...` and `YOUR-...` marker before deployment. Render injects these values directly; the ignored file itself is never included in the Docker image.
+
 ```text
 NODE_ENV=production
 ASPNETCORE_ENVIRONMENT=Production
