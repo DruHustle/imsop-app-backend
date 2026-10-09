@@ -51,10 +51,20 @@ Render executes build, migrations, starts the API, and probes `/ready`. Traffic 
 
 ## Kubernetes
 
+The main-branch CI workflow publishes the .NET service images to GitHub Container Registry using the repository's built-in `GITHUB_TOKEN`:
+
+```text
+ghcr.io/druhustle/imsop-gateway:<git-sha>
+ghcr.io/druhustle/imsop-operationsservice:<git-sha>
+ghcr.io/druhustle/imsop-supplychainservice:<git-sha>
+```
+
+It also updates `latest` for convenience. Production manifests should use the immutable Git SHA tag or image digest, not `latest`. No ACR credentials are required. If a package is private, configure an image-pull secret in the deployment cluster; public packages can be pulled directly.
+
 Create `db-secrets` and `api-secrets`, then deploy an immutable image tag/digest:
 
 ```bash
-export IMSOP_IMAGE=registry.example.com/imsop-api@sha256:<digest>
+export IMSOP_IMAGE=ghcr.io/druhustle/imsop-gateway@sha256:<digest>
 bash scripts/deploy-kubernetes.sh
 ```
 

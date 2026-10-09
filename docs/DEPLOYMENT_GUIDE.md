@@ -1,6 +1,6 @@
 # IMSOP Backend Deployment Guide
 
-This document provides step-by-step instructions for setting up and deploying the IMSOP backend microservices to Azure using free tier services.
+This document provides step-by-step instructions for setting up and deploying the IMSOP backend microservices. Container images are stored in GitHub Container Registry (GHCR); Azure remains an optional runtime target.
 
 ## Prerequisites
 - **Azure Account**: A free Azure account.
@@ -37,11 +37,16 @@ Update the `appsettings.json` in each service or use Azure App Service Environme
    ```bash
    docker build -t imsop-supplychain -f infrastructure/docker/SupplyChainService.Dockerfile .
    ```
-2. Push to Azure Container Registry (if using) or deploy directly to App Service via GitHub Actions.
+2. Push to `main`. GitHub Actions builds and publishes all three .NET service images to GHCR with both the commit SHA and `latest` tags:
+   - `ghcr.io/druhustle/imsop-gateway`
+   - `ghcr.io/druhustle/imsop-operationsservice`
+   - `ghcr.io/druhustle/imsop-supplychainservice`
+
+GitHub Actions authenticates with the built-in `GITHUB_TOKEN`; no Azure Container Registry credentials are required. Deploy immutable SHA tags or digests in production.
 
 ## Step 5: CI/CD Setup
-1. Use the provided GitHub Actions workflows in `pipelines/github-actions`.
-2. Configure the following secrets in your GitHub repository:
+1. Use `.github/workflows/ci-cd.yml` to test, build, and publish the service images.
+2. Configure the following secrets only when deploying the published images to Azure App Service:
    - `AZURE_CREDENTIALS`
    - `AZURE_WEBAPP_NAME`
    - `AZURE_WEBAPP_PUBLISH_PROFILE`

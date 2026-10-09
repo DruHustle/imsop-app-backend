@@ -630,7 +630,7 @@
 │                   ▼                                            │
 │  ┌────────────────────────────────────────────────────────────┐  │
 │  │  Push to Container Registry                               │  │
-│  │  (Docker Hub / Azure Container Registry)                  │  │
+│  │  (GitHub Container Registry / GHCR)                       │  │
 │  └────────────────┬─────────────────────────────────────────┘  │
 │                   │                                            │
 │                   ▼                                            │
