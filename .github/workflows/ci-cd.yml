@@ -61,6 +61,10 @@ jobs:
             image: imsop-node-api
             dockerfile: server/Dockerfile
             context: ./server
+          - service: IMSOP.RenderBundle
+            image: imsop-backend
+            dockerfile: infrastructure/render/Dockerfile
+            context: .
 
     steps:
       - name: Checkout Code

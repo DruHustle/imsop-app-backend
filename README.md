@@ -36,7 +36,7 @@ The system follows a **Microservices Architecture** with a clear separation of c
 *   `/src`: .NET 8 Solution and Microservices source code.
 *   `/server`: Node.js API used by the React frontend for authentication, logistics ingestion, telemetry, and operations data.
 *   `/infrastructure`: Terraform and Bicep templates for automated Azure provisioning.
-*   `/render.yaml`: Render deployment blueprint for the Node.js API.
+*   `/infrastructure/render`: Single production image packaging for Render's **Existing Image** deployment flow.
 *   `/setup-dev-db.sh` and `/setup-test-db.sh`: Local MySQL database setup.
 *   `/pipelines`: CI/CD workflow definitions for automated testing and deployment.
 *   `/docs`: Detailed deployment guides, API flows, and architectural diagrams.
@@ -51,4 +51,5 @@ Refer to the [Deployment Guide](./docs/DEPLOYMENT_GUIDE.md) for step-by-step ins
 - [Database guide and diagrams](./docs/DATABASE.md)
 - [API reference](./docs/API.md)
 - [Deployment and rollback](./docs/DEPLOYMENT.md)
+- [Render image deployment](./docs/RENDER_IMAGE_DEPLOYMENT.md)
 - [Test strategy](./docs/TESTING.md)
