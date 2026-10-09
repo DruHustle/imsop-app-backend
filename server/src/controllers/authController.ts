@@ -8,6 +8,14 @@ import { AuthRequest } from '../middleware/auth';
 import { getJwtSecret } from '../config/security';
 import { isEmailConfigured, sendPasswordResetEmail } from '../services/emailService';
 
+const authCookieOptions = () => ({
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: process.env.NODE_ENV === 'production' ? 'none' as const : 'lax' as const,
+  maxAge: 15 * 60 * 1000,
+  path: '/',
+});
+
 const publicUser = (user: typeof users.$inferSelect) => ({
   id: String(user.id), email: user.email, name: user.name, role: user.role,
 });
@@ -30,13 +38,7 @@ export const login = async (req: Request, res: Response) => {
       { expiresIn: '15m', issuer: 'imsop-api', audience: 'imsop-web' }
     );
 
-    res.cookie('imsop_access', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 15 * 60 * 1000,
-      path: '/',
-    });
+    res.cookie('imsop_access', token, authCookieOptions());
     res.json({ user: publicUser(user) });
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
@@ -72,9 +74,7 @@ export const register = async (req: Request, res: Response) => {
       { id: newUser.id, email: newUser.email, role: newUser.role }, getJwtSecret(),
       { expiresIn: '15m', issuer: 'imsop-api', audience: 'imsop-web' },
     );
-    res.cookie('imsop_access', token, {
-      httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict', maxAge: 15 * 60 * 1000, path: '/',
-    });
+    res.cookie('imsop_access', token, authCookieOptions());
     res.status(201).json({ user: publicUser(newUser) });
   } catch (error) {
     res.status(500).json({ error: 'Failed to register user' });
@@ -100,7 +100,10 @@ export const getCurrentUser = async (req: AuthRequest, res: Response) => {
 
 export const logout = (_req: Request, res: Response) => {
   res.clearCookie('imsop_access', {
-    httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict', path: '/',
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    path: '/',
   });
   res.status(204).end();
 };
