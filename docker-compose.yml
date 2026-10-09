@@ -8,8 +8,6 @@ services:
       MYSQL_DATABASE: imsop
       MYSQL_USER: imsop
       MYSQL_PASSWORD: imsop
-    ports:
-      - "3306:3306"
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p$$MYSQL_ROOT_PASSWORD --silent"]
       interval: 10s
@@ -19,12 +17,30 @@ services:
     volumes:
       - mysql_data:/var/lib/mysql
 
+  postgres:
+    image: postgres:17-alpine
+    container_name: imsop-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: imsop_supply_chain
+      POSTGRES_USER: imsop
+      POSTGRES_PASSWORD: imsop-postgres-local
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U imsop -d imsop_supply_chain"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
   server:
     build:
       context: ./server
       dockerfile: Dockerfile
     container_name: imsop-server
     restart: unless-stopped
+    command: ["/bin/sh", "-c", "node dist/migrate.js && node dist/index.js"]
     environment:
       NODE_ENV: production
       PORT: 3001
@@ -34,10 +50,10 @@ services:
       DB_USER: imsop
       DB_PASSWORD: imsop
       DB_NAME: imsop
-      JWT_SECRET: change-me-in-production
+      JWT_SECRET: ${JWT_SECRET:-local-only-jwt-secret-change-before-production-2026}
       EMAIL_PROVIDER: gmail
       GMAIL_FROM: notifications.imsop@gmail.com
-      GMAIL_APP_PASSWORD: ${GMAIL_APP_PASSWORD:-}
+      GMAIL_APP_PASSWORD: ${GMAIL_APP_PASSWORD:-local-container-smoke-test-only}
       PASSWORD_RESET_BASE_URL: http://localhost:5173/#/reset-password
       LOGISTICS_WEBHOOK_SECRETS: '{"local-provider":"local-logistics-webhook-secret-change-me-2026"}'
     ports:
@@ -46,5 +62,64 @@ services:
       mysql:
         condition: service_healthy
 
+  operations-service:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/OperationsService.Dockerfile
+    container_name: imsop-operations-service
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_HTTP_PORTS: 10000
+      JWT_SECRET: ${JWT_SECRET:-local-only-jwt-secret-change-before-production-2026}
+      CORS_ALLOWED_ORIGINS: http://localhost:5173,http://localhost:3000
+    ports:
+      - "5101:10000"
+
+  supply-chain-service:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/SupplyChainService.Dockerfile
+    container_name: imsop-supply-chain-service
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_HTTP_PORTS: 10000
+      JWT_SECRET: ${JWT_SECRET:-local-only-jwt-secret-change-before-production-2026}
+      CORS_ALLOWED_ORIGINS: http://localhost:5173,http://localhost:3000
+      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=imsop_supply_chain;Username=imsop;Password=imsop-postgres-local
+      Database__AutoEnsureCreated: "true"
+      ServiceBus__Enabled: "false"
+    ports:
+      - "5102:10000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  gateway:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Gateway.Dockerfile
+    container_name: imsop-gateway
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_HTTP_PORTS: 10000
+      JWT_SECRET: ${JWT_SECRET:-local-only-jwt-secret-change-before-production-2026}
+      CORS_ALLOWED_ORIGINS: http://localhost:5173,http://localhost:3000
+      NODE_API_URL: http://server:3001
+      OPERATIONS_SERVICE_URL: http://operations-service:10000
+      SUPPLY_CHAIN_SERVICE_URL: http://supply-chain-service:10000
+    ports:
+      - "8080:10000"
+    depends_on:
+      server:
+        condition: service_healthy
+      operations-service:
+        condition: service_started
+      supply-chain-service:
+        condition: service_started
+
 volumes:
   mysql_data:
+  postgres_data:

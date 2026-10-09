@@ -39,15 +39,37 @@ pnpm dev
 
 ## Render
 
-The repository-root `render.yaml` defines the API service:
+The repository-root `render.yaml` defines the complete containerized backend:
+
+- `imsop-backend-api`: public .NET/YARP gateway and readiness boundary
+- `imsop-node-api`: private authentication, operations, telemetry, and logistics API
+- `imsop-operations-service`: private .NET operations service
+- `imsop-supply-chain-service`: private .NET supply-chain service
+- `imsop-supply-chain-db`: private managed PostgreSQL database
+
+The Node API continues to use the production MySQL `DATABASE_URL` supplied during Blueprint creation. The Vercel frontend communicates only with `https://imsop-backend-api.onrender.com`; private services are not exposed to the internet.
 
 1. Connect `imsop-app-backend` as a Render Blueprint.
-2. Provide every `sync: false` environment variable.
-3. Keep the paid `0.5c-512mb` plan because `preDeployCommand` runs database migrations.
-4. Set the frontend `VITE_API_URL` to the Render API origin.
+2. Provide every `sync: false` environment variable, especially `DATABASE_URL`, one shared 32+ character `JWT_SECRET`, Gmail credentials, and logistics webhook secrets.
+3. Review and approve the paid service and PostgreSQL resources shown by Render.
+4. Set Vercel `VITE_API_URL=https://imsop-backend-api.onrender.com` and redeploy production.
 5. Deploy only after GitHub checks pass.
 
-Render executes build, migrations, starts the API, and probes `/ready`. Traffic is not moved to the new release unless readiness succeeds; the previous healthy deployment remains live on failure.
+Render builds each service from its Dockerfile. The Node container runs its idempotent migrations before startup, and the gateway probes every private service plus both databases through `/ready`. Traffic is not moved to a new gateway release unless readiness succeeds; the previous healthy deployment remains live on failure.
+
+Render credentials are not committed. A repository push can build and publish images, but the first Blueprint creation/sync must be authorized in the Render workspace.
+
+## Local complete stack
+
+Start the same backend topology locally:
+
+```bash
+docker compose up -d --build
+curl --fail http://127.0.0.1:8080/ready
+docker compose ps
+```
+
+The databases are private to the Compose network. Public development ports are gateway `8080`, Node API `3001`, Operations `5101`, and Supply Chain `5102`.
 
 ## Kubernetes
 

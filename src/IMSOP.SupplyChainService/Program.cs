@@ -71,6 +71,13 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapGet("/health", () => Results.Ok(new { status = "ok", service = "IMSOP.SupplyChainService" })).AllowAnonymous();
+app.MapGet("/ready", async (ApplicationDbContext db, CancellationToken cancellationToken) =>
+{
+    var canConnect = await db.Database.CanConnectAsync(cancellationToken);
+    return canConnect
+        ? Results.Ok(new { status = "ready", service = "IMSOP.SupplyChainService" })
+        : Results.Json(new { status = "not-ready", service = "IMSOP.SupplyChainService" }, statusCode: StatusCodes.Status503ServiceUnavailable);
+}).AllowAnonymous();
 app.MapControllers();
 
 app.Run();

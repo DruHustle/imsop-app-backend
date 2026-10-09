@@ -28,6 +28,22 @@ flowchart LR
     SC --> BUS[Azure Service Bus]
 ```
 
+### Production topology
+
+```mermaid
+flowchart LR
+    Browser -->|HTTPS| Vercel[Vercel frontend]
+    Vercel -->|HTTPS + secure cookie| Gateway[Render: IMSOP gateway]
+    Gateway -->|private network| Node[Node API container]
+    Gateway -->|private network| Ops[Operations container]
+    Gateway -->|private network| Supply[Supply Chain container]
+    Node -->|TLS| MySQL[(Managed MySQL)]
+    Supply -->|private network| Postgres[(Render PostgreSQL)]
+    Carrier[Carrier / GPS / IoT] -->|signed webhook| Gateway
+```
+
+Only the gateway is public. Render private services isolate the application containers, while Vercel serves the compiled frontend. Gateway readiness verifies the downstream services before Render shifts production traffic.
+
 ## Authentication and authorization
 
 ```mermaid

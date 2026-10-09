@@ -48,12 +48,19 @@ jobs:
           - service: IMSOP.Gateway
             image: imsop-gateway
             dockerfile: infrastructure/docker/Gateway.Dockerfile
+            context: .
           - service: IMSOP.OperationsService
             image: imsop-operationsservice
             dockerfile: infrastructure/docker/OperationsService.Dockerfile
+            context: .
           - service: IMSOP.SupplyChainService
             image: imsop-supplychainservice
             dockerfile: infrastructure/docker/SupplyChainService.Dockerfile
+            context: .
+          - service: IMSOP.NodeApi
+            image: imsop-node-api
+            dockerfile: server/Dockerfile
+            context: ./server
 
     steps:
       - name: Checkout Code
@@ -79,7 +86,7 @@ jobs:
       - name: Build and Push Docker Image
         uses: docker/build-push-action@v6
         with:
-          context: .
+          context: ${{ matrix.context }}
           file: ${{ matrix.dockerfile }}
           push: true
           tags: |
