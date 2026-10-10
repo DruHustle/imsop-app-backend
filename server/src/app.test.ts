@@ -2,8 +2,48 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import app from './app';
 import jwt from 'jsonwebtoken';
-import { getJwtSecret } from './config/security';
+import { assertProductionConfiguration, getAllowedOrigins, getJwtSecret } from './config/security';
 import crypto from 'node:crypto';
+import { escapeHtml } from './controllers/operationsController';
+
+test('HTML reports escape stored data', () => {
+  assert.equal(escapeHtml(`<script>alert("x")</script> & 'quoted'`), '&lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt; &amp; &#39;quoted&#39;');
+});
+
+test('allowed origins are trimmed and support multiple Vercel domains', () => {
+  const previous = process.env.CORS_ALLOWED_ORIGINS;
+  process.env.CORS_ALLOWED_ORIGINS = ' https://imsop-app.vercel.app , https://preview.example.com ';
+  try {
+    assert.deepEqual(getAllowedOrigins(), ['https://imsop-app.vercel.app', 'https://preview.example.com']);
+  } finally {
+    if (previous === undefined) delete process.env.CORS_ALLOWED_ORIGINS;
+    else process.env.CORS_ALLOWED_ORIGINS = previous;
+  }
+});
+
+test('production configuration rejects invalid Gmail app passwords', () => {
+  const keys = ['NODE_ENV', 'DATABASE_URL', 'ALLOWED_ORIGIN', 'CORS_ALLOWED_ORIGINS', 'PASSWORD_RESET_BASE_URL', 'JWT_SECRET', 'EMAIL_PROVIDER', 'GMAIL_APP_PASSWORD', 'LOGISTICS_WEBHOOK_SECRETS'] as const;
+  const previous = Object.fromEntries(keys.map(key => [key, process.env[key]]));
+  Object.assign(process.env, {
+    NODE_ENV: 'production',
+    DATABASE_URL: 'postgresql://user:password@db.example.com:5432/imsop',
+    ALLOWED_ORIGIN: 'https://imsop-app.vercel.app',
+    CORS_ALLOWED_ORIGINS: 'https://imsop-app.vercel.app',
+    PASSWORD_RESET_BASE_URL: 'https://imsop-app.vercel.app/#/reset-password',
+    JWT_SECRET: 'a-secure-production-jwt-secret-at-least-32-characters',
+    EMAIL_PROVIDER: 'gmail',
+    GMAIL_APP_PASSWORD: 'not-an-app-password',
+    LOGISTICS_WEBHOOK_SECRETS: JSON.stringify({ carrier: 'a-secure-provider-secret-at-least-32-characters' }),
+  });
+  try {
+    assert.throws(() => assertProductionConfiguration(), /16-character Google App Password/);
+  } finally {
+    for (const key of keys) {
+      if (previous[key] === undefined) delete process.env[key];
+      else process.env[key] = previous[key];
+    }
+  }
+});
 
 test('GET /health returns ok', async () => {
   const server = app.listen(0);

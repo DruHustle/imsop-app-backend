@@ -6,6 +6,6 @@ import './env';
 const connectionString = process.env.DATABASE_URL
   || 'postgresql://imsop:imsop-postgres-local@localhost:5432/imsop_supply_chain';
 
-const connection = new Pool({ connectionString });
+export const connection = new Pool({ connectionString });
 
 export const db = drizzle(connection, { schema });

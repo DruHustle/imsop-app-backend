@@ -2,6 +2,16 @@ import { Request, Response } from 'express';
 import { db } from '../config/db';
 import { shipments, orders } from '../models/schema';
 
+export const escapeHtml = (value: unknown) => String(value ?? '')
+  .replaceAll('&', '&amp;')
+  .replaceAll('<', '&lt;')
+  .replaceAll('>', '&gt;')
+  .replaceAll('"', '&quot;')
+  .replaceAll("'", '&#39;');
+
+const formatDate = (value: Date | string | null | undefined) =>
+  value ? new Date(value).toLocaleDateString() : 'N/A';
+
 export const getShipments = async (req: Request, res: Response) => {
   try {
     const allShipments = await db.select().from(shipments);
@@ -58,12 +68,12 @@ export const exportShipmentsReport = async (req: Request, res: Response) => {
           </tr>
           ${allShipments.map((s: any) => `
             <tr>
-              <td>${s.tracking_number}</td>
-              <td>${s.origin}</td>
-              <td>${s.destination}</td>
-              <td>${s.status}</td>
-              <td>${s.estimated_arrival ? new Date(s.estimated_arrival).toLocaleDateString() : 'N/A'}</td>
-              <td>${s.actual_arrival ? new Date(s.actual_arrival).toLocaleDateString() : 'N/A'}</td>
+              <td>${escapeHtml(s.trackingNumber)}</td>
+              <td>${escapeHtml(s.origin)}</td>
+              <td>${escapeHtml(s.destination)}</td>
+              <td>${escapeHtml(s.status)}</td>
+              <td>${escapeHtml(formatDate(s.estimatedArrival))}</td>
+              <td>${escapeHtml(formatDate(s.actualArrival))}</td>
             </tr>
           `).join('')}
         </table>
@@ -115,11 +125,11 @@ export const exportOrdersReport = async (req: Request, res: Response) => {
           </tr>
           ${allOrders.map((o: any) => `
             <tr>
-              <td>${o.order_number}</td>
-              <td>${o.customer_id || 'N/A'}</td>
-              <td>$${parseFloat(o.total_amount).toFixed(2)}</td>
-              <td>${o.status}</td>
-              <td>${new Date(o.created_at).toLocaleDateString()}</td>
+              <td>${escapeHtml(o.orderNumber)}</td>
+              <td>${escapeHtml(o.customerId ?? 'N/A')}</td>
+              <td>$${escapeHtml(Number(o.totalAmount).toFixed(2))}</td>
+              <td>${escapeHtml(o.status)}</td>
+              <td>${escapeHtml(formatDate(o.createdAt))}</td>
             </tr>
           `).join('')}
         </table>

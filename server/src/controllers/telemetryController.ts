@@ -17,7 +17,7 @@ export const postTelemetry = async (req: Request, res: Response) => {
     await db.insert(telemetry).values({
       deviceId,
       metricName,
-      metricValue,
+      metricValue: String(metricValue),
     });
     res.status(201).json({ message: 'Telemetry recorded' });
   } catch (error) {

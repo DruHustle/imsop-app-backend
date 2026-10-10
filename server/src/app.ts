@@ -7,6 +7,7 @@ import { rateLimit } from './middleware/rateLimit';
 import logisticsIntegrationRoutes from './routes/logisticsIntegrationRoutes';
 import { db } from './config/db';
 import { sql } from 'drizzle-orm';
+import { getAllowedOrigins } from './config/security';
 
 const app = express();
 
@@ -14,7 +15,7 @@ app.disable('x-powered-by');
 app.set('trust proxy', 1);
 
 app.use(cors({
-  origin: process.env.ALLOWED_ORIGIN || 'http://localhost:5173',
+  origin: getAllowedOrigins(),
   credentials: true,
 }));
 app.use((_req, res, next) => {

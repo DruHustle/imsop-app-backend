@@ -49,27 +49,15 @@ export const register = async (req: Request, res: Response) => {
   const { email, password, name } = req.body;
 
   try {
-    const existingUser = await db.query.users.findFirst({
-      where: eq(users.email, email),
-    });
-
-    if (existingUser) {
-      return res.status(400).json({ error: 'User already exists' });
-    }
-
     const hashedPassword = await bcrypt.hash(password, 12);
-    await db.insert(users).values({
+    const [newUser] = await db.insert(users).values({
       email,
       password: hashedPassword,
       name,
       role: 'user',
-    });
+    }).onConflictDoNothing({ target: users.email }).returning();
 
-    const newUser = await db.query.users.findFirst({
-      where: eq(users.email, email),
-    });
-
-    if (!newUser) return res.status(500).json({ error: 'Failed to register user' });
+    if (!newUser) return res.status(409).json({ error: 'User already exists' });
     const token = jwt.sign(
       { id: newUser.id, email: newUser.email, role: newUser.role }, getJwtSecret(),
       { expiresIn: '15m', issuer: 'imsop-api', audience: 'imsop-web' },
@@ -175,7 +163,10 @@ export const changePassword = async (req: AuthRequest, res: Response) => {
     }
 
     const hashedPassword = await bcrypt.hash(newPassword, 12);
-    await db.update(users).set({ password: hashedPassword }).where(eq(users.id, Number(id)));
+    await db.update(users).set({
+      password: hashedPassword,
+      passwordResetVersion: user.passwordResetVersion + 1,
+    }).where(eq(users.id, Number(id)));
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: 'Failed to change password' });
