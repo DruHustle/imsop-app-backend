@@ -4,8 +4,8 @@
 |---|---|---|
 | .NET unit | `dotnet test src/IMSOP.sln -m:1` | Purchase-order validation |
 | Node API | `pnpm -C server test` | Health, headers, validation, authentication boundary, RBAC, webhook signatures |
-| Frontend unit | `pnpm test` in `imsop-app` | Components and demo authentication |
-| Browser E2E | `pnpm e2e` in `imsop-app` | Desktop and mobile, all demo roles, routes and user workflows |
+| Frontend unit | `pnpm test` in `imsop-app-frontend` | Components and demo authentication |
+| Browser E2E | `pnpm e2e` in `imsop-app-frontend` | Desktop and mobile, all demo roles, routes and user workflows |
 
 The browser suite uses isolated contexts. It covers:
 

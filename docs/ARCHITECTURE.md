@@ -4,7 +4,7 @@
 
 | Repository | Responsibility |
 |---|---|
-| `imsop-app` | React/Vite frontend, browser tests, static frontend deployment |
+| `imsop-app-frontend` | React/Vite frontend, browser tests, static frontend deployment |
 | `imsop-app-backend` | Node API, .NET services, databases, migrations, infrastructure and backend CI/CD |
 
 The React application currently uses the Node API as its browser-facing backend. The .NET services provide the supply-chain microservice foundation and protected order APIs. They share the same JWT issuer (`imsop-api`) and audience (`imsop-web`) but remain independently deployable.

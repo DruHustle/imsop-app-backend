@@ -22,8 +22,8 @@ Before starting development, ensure you have the following installed:
 #### 1.2.1 Clone Repository
 
 ```bash
-git clone https://github.com/DruHustle/imsop-app.git
-cd imsop-app
+git clone https://github.com/DruHustle/imsop-app-backend.git
+cd imsop-app-backend
 ```
 
 #### 1.2.2 Install Dependencies
