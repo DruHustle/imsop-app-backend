@@ -5,6 +5,52 @@ import jwt from 'jsonwebtoken';
 import { assertProductionConfiguration, getAllowedOrigins, getJwtSecret } from './config/security';
 import crypto from 'node:crypto';
 import { escapeHtml } from './controllers/operationsController';
+import { rateLimit } from './middleware/rateLimit';
+import { Request, Response } from 'express';
+
+test('API and authentication limits use independent windows and cover changing paths', () => {
+  const apiLimiter = rateLimit(60_000, 120);
+  const authLimiter = rateLimit(900_000, 1);
+  const req = { ip: 'limiter-test', baseUrl: '/api', path: '/auth/login' } as Request;
+  let status = 200;
+  let allowed = 0;
+  const res = {
+    setHeader() {}, status(value: number) { status = value; return this; }, json() {},
+  } as unknown as Response;
+  apiLimiter(req, res, () => allowed++);
+  authLimiter(req, res, () => allowed++);
+  assert.equal(allowed, 2);
+  // A different route must still share the authentication limit for this IP.
+  authLimiter({ ...req, path: '/auth/register' } as Request, res, () => allowed++);
+  assert.equal(status, 429);
+  assert.equal(allowed, 2);
+});
+
+test('API errors return JSON and unsafe cross-site cookie requests are rejected', async () => {
+  const server = app.listen(0);
+  try {
+    const address = server.address();
+    assert(address && typeof address === 'object');
+    const base = `http://127.0.0.1:${address.port}`;
+    const missing = await fetch(`${base}/api/missing`);
+    assert.equal(missing.status, 404);
+    assert.deepEqual(await missing.json(), { error: 'Not found' });
+    const malformed = await fetch(`${base}/api/auth/login`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{',
+    });
+    assert.equal(malformed.status, 400);
+    assert.deepEqual(await malformed.json(), { error: 'Invalid JSON body' });
+    for (const origin of [undefined, 'https://untrusted.example']) {
+      const response = await fetch(`${base}/api/auth/logout`, {
+        method: 'POST', headers: { Cookie: 'imsop_access=test', ...(origin && { Origin: origin }) },
+      });
+      assert.equal(response.status, 403);
+      assert.deepEqual(await response.json(), { error: 'Cross-site session request blocked' });
+    }
+  } finally {
+    await new Promise<void>((resolve, reject) => server.close(err => err ? reject(err) : resolve()));
+  }
+});
 
 test('HTML reports escape stored data', () => {
   assert.equal(escapeHtml(`<script>alert("x")</script> & 'quoted'`), '&lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt; &amp; &#39;quoted&#39;');

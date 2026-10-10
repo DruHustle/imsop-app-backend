@@ -22,8 +22,9 @@ export const authenticate = (req: AuthRequest, res: Response, next: NextFunction
   }
 
   try {
-    const decoded = jwt.verify(token, getJwtSecret(), { issuer: 'imsop-api', audience: 'imsop-web' });
-    if (typeof decoded === 'string' || decoded.purpose === 'password-reset') {
+    const decoded = jwt.verify(token, getJwtSecret(), { algorithms: ['HS256'], issuer: 'imsop-api', audience: 'imsop-web' });
+    if (typeof decoded === 'string' || decoded.purpose === 'password-reset'
+      || !Number.isInteger(decoded.id) || typeof decoded.email !== 'string' || typeof decoded.role !== 'string') {
       return res.status(401).json({ error: 'Invalid token' });
     }
     req.user = decoded as unknown as AuthenticatedUser;

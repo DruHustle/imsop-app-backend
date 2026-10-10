@@ -35,6 +35,25 @@ jobs:
       - name: Run Tests
         run: dotnet test src/IMSOP.sln --no-build --verbosity normal --configuration Release
 
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.4.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+          cache-dependency-path: server/pnpm-lock.yaml
+
+      - name: Verify Node API before publishing production images
+        working-directory: server
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm test
+          pnpm build
+
   docker-build-push:
     name: Docker Build and Push
     needs: build-and-test

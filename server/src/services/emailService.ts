@@ -13,14 +13,14 @@ function resendClient(): Resend {
 
 function gmailTransport() {
   const user = gmailSender();
-  const smtp = { host: 'smtp.gmail.com', port: 465, secure: true } as const;
+  const smtp = { host: 'smtp.gmail.com', port: 465, secure: true, connectionTimeout: 10_000, greetingTimeout: 10_000, socketTimeout: 15_000 } as const;
   if (process.env.GMAIL_CLIENT_ID && process.env.GMAIL_CLIENT_SECRET && process.env.GMAIL_REFRESH_TOKEN) {
     return nodemailer.createTransport({
       ...smtp,
       auth: { type: 'OAuth2', user, clientId: process.env.GMAIL_CLIENT_ID, clientSecret: process.env.GMAIL_CLIENT_SECRET, refreshToken: process.env.GMAIL_REFRESH_TOKEN },
     });
   }
-  if (process.env.GMAIL_APP_PASSWORD) return nodemailer.createTransport({ ...smtp, auth: { user, pass: process.env.GMAIL_APP_PASSWORD } });
+  if (process.env.GMAIL_APP_PASSWORD) return nodemailer.createTransport({ ...smtp, auth: { user, pass: process.env.GMAIL_APP_PASSWORD.replace(/\s/g, '') } });
   throw new Error('Gmail credentials are not configured');
 }
 

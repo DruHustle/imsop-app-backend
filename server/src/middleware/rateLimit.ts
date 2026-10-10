@@ -1,12 +1,19 @@
 import { NextFunction, Request, Response } from 'express';
 
 interface Entry { count: number; resetAt: number }
-const buckets = new Map<string, Entry>();
-
-export const rateLimit = (windowMs: number, limit: number) =>
-  (req: Request, res: Response, next: NextFunction) => {
+export const rateLimit = (windowMs: number, limit: number) => {
+  // Each limiter owns its window; the API and auth limiters must not reset one another.
+  const buckets = new Map<string, Entry>();
+  return (req: Request, res: Response, next: NextFunction) => {
     const now = Date.now();
-    const key = `${req.ip}:${req.baseUrl}${req.path}`;
+    const key = req.ip || 'unknown';
+    if (!buckets.has(key) && buckets.size >= 10_000) {
+      for (const [bucketKey, value] of buckets) if (value.resetAt <= now) buckets.delete(bucketKey);
+      if (buckets.size >= 10_000) {
+        res.setHeader('Retry-After', String(Math.ceil(windowMs / 1000)));
+        return res.status(429).json({ error: 'Too many requests' });
+      }
+    }
     const current = buckets.get(key);
     const entry = !current || current.resetAt <= now
       ? { count: 1, resetAt: now + windowMs }
@@ -18,8 +25,6 @@ export const rateLimit = (windowMs: number, limit: number) =>
       res.setHeader('Retry-After', String(Math.ceil((entry.resetAt - now) / 1000)));
       return res.status(429).json({ error: 'Too many requests' });
     }
-    if (buckets.size > 10_000) {
-      for (const [bucketKey, value] of buckets) if (value.resetAt <= now) buckets.delete(bucketKey);
-    }
     next();
   };
+};

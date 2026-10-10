@@ -34,6 +34,15 @@ app.use(express.json({
   verify: (req, _res, buffer) => { (req as express.Request).rawBody = Buffer.from(buffer); },
 }));
 app.use('/api', rateLimit(60_000, 120));
+app.use('/api', (req, res, next) => {
+  const usesCookie = /(?:^|;\s*)imsop_access=/.test(req.headers.cookie || '');
+  if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method) && usesCookie && !req.headers.authorization) {
+    if (!req.headers.origin || !getAllowedOrigins().includes(req.headers.origin)) {
+      return res.status(403).json({ error: 'Cross-site session request blocked' });
+    }
+  }
+  next();
+});
 
 app.use('/api/auth', authRoutes);
 app.use('/api/operations', operationsRoutes);
@@ -50,6 +59,14 @@ app.get('/ready', async (_req, res) => {
   } catch {
     res.status(503).json({ status: 'not_ready' });
   }
+});
+
+app.use((_req, res) => res.status(404).json({ error: 'Not found' }));
+app.use((error: Error & { status?: number }, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  if (res.headersSent) return _next(error);
+  const status = error.status === 400 || error.status === 413 ? error.status : 500;
+  if (status === 500) console.error('[api] Request failed', { name: error.name });
+  res.status(status).json({ error: status === 400 ? 'Invalid JSON body' : status === 413 ? 'Request body too large' : 'Internal server error' });
 });
 
 export default app;
