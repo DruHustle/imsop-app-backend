@@ -147,9 +147,10 @@ When updating documentation:
 
 ## Related Resources
 
-- **GitHub Repository:** https://github.com/DruHustle/imsop-app
-- **Issue Tracker:** https://github.com/DruHustle/imsop-app/issues
-- **Pull Requests:** https://github.com/DruHustle/imsop-app/pulls
+- **GitHub Repository:** https://github.com/DruHustle/imsop-app-backend
+- **Issue Tracker:** https://github.com/DruHustle/imsop-app-backend/issues
+- **Pull Requests:** https://github.com/DruHustle/imsop-app-backend/pulls
+- **Frontend Repository:** https://github.com/DruHustle/imsop-app-frontend
 
 ## Contact
 

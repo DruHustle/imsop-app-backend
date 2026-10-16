@@ -29,7 +29,7 @@ pnpm db:migrate
 pnpm dev
 ```
 
-Frontend, in the sibling `imsop-app` repository:
+Frontend, in the sibling `imsop-app-frontend` repository:
 
 ```bash
 cp .env.example .env

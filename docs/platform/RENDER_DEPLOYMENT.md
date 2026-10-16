@@ -45,7 +45,7 @@ This guide explains how to deploy the IMSOP backend service on Render and connec
 1. Go to https://render.com and sign in
 2. Click "New +" and select "Web Service"
 3. Click "Connect a repository"
-4. Select your GitHub account and the `imsop-app` repository
+4. Select your GitHub account and the `imsop-app-backend` repository
 5. Click "Connect"
 
 ### 2.2 Configure Web Service
