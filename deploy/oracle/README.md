@@ -14,7 +14,7 @@ The API runs on the shared **Software Engineering Backend** VM, hostname
 ## Build and deploy
 
 Run the repository checks first. Build a clean checkout for ARM64 using
-`docker build --platform linux/arm64 --build-arg APP_REVISION=<sha> -f infrastructure/render/Dockerfile -t imsop-app-backend:oracle-<sha> .`.
+`docker build --platform linux/arm64 --build-arg APP_REVISION=<sha> -f deploy/oracle/Dockerfile -t imsop-app-backend:oracle-<sha> .`.
 For IMSOP, the existing Dockerfile starts the .NET gateway, operations and supply
 chain services plus the Node API; all internal service ports stay private.
 Exclude local environment files, `.git`, dependencies, build output and private

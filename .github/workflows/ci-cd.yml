@@ -80,9 +80,9 @@ jobs:
             image: imsop-node-api
             dockerfile: server/Dockerfile
             context: ./server
-          - service: IMSOP.RenderBundle
+          - service: IMSOP.OracleBundle
             image: imsop-backend
-            dockerfile: infrastructure/render/Dockerfile
+            dockerfile: deploy/oracle/Dockerfile
             context: .
 
     steps:
