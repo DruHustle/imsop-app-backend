@@ -2,7 +2,7 @@
 
 ## Required production secrets
 
-Never commit these values. Configure them in Render/Kubernetes:
+Never commit these values. Configure them in the private Oracle Compose runtime override or Kubernetes secrets:
 
 - `DATABASE_URL`
 - `JWT_SECRET` (at least 32 random characters)
@@ -37,27 +37,23 @@ pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-## Render
+## Oracle production
 
-The repository-root `render.yaml` defines the complete containerized backend:
+The production API runs on the shared **Software Engineering Backend** Oracle VM
+at `https://imsop-api.152-70-22-84.sslip.io`. See
+[Oracle image deployment and rollback](../deploy/oracle/README.md) for the tested
+ARM64 image, private runtime override, ingress and release commands.
 
-- `imsop-backend-api`: public .NET/YARP gateway and readiness boundary
-- `imsop-node-api`: private authentication, operations, telemetry, and logistics API
-- `imsop-operations-service`: private .NET operations service
-- `imsop-supply-chain-service`: private .NET supply-chain service
-- `imsop-supply-chain-db`: private managed PostgreSQL database
+The single production image contains the .NET gateway, Operations and Supply
+Chain services, and Node API. Internal service ports remain private. Existing
+managed PostgreSQL data, signing keys, provider settings and authorization
+controls are preserved. No production database is created or copied by the
+hosting migration.
 
-The Node API continues to use the production MySQL `DATABASE_URL` supplied during Blueprint creation. The Vercel frontend communicates only with `https://imsop-backend-api.onrender.com`; private services are not exposed to the internet.
-
-1. Connect `imsop-app-backend` as a Render Blueprint.
-2. Provide every `sync: false` environment variable, especially `DATABASE_URL`, one shared 32+ character `JWT_SECRET`, Gmail credentials, and logistics webhook secrets.
-3. Review and approve the paid service and PostgreSQL resources shown by Render.
-4. Set Vercel `VITE_API_URL=https://imsop-backend-api.onrender.com` and redeploy production.
-5. Deploy only after GitHub checks pass.
-
-Render builds each service from its Dockerfile. The Node container runs its idempotent migrations before startup, and the gateway probes every private service plus both databases through `/ready`. Traffic is not moved to a new gateway release unless readiness succeeds; the previous healthy deployment remains live on failure.
-
-Render credentials are not committed. A repository push can build and publish images, but the first Blueprint creation/sync must be authorized in the Render workspace.
+The Vercel frontend uses its same-origin `/api/*` proxy; GitHub Pages uses the
+Oracle HTTPS origin. Do not resume retired services or restore obsolete
+Blueprint/deploy-hook instructions. Roll back to the previous tested Oracle
+image and verify readiness before routing traffic.
 
 ## Local complete stack
 
@@ -97,7 +93,7 @@ The deployment uses three replicas, `maxUnavailable: 0`, readiness/liveness prob
 The frontend GitHub Pages workflow builds only after its tests pass. Configure:
 
 ```text
-VITE_API_URL=https://<render-service>.onrender.com
+VITE_API_URL=https://imsop-api.152-70-22-84.sslip.io
 VITE_GOOGLE_MAPS_API_KEY=<restricted-browser-key>
 ```
 

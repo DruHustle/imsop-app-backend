@@ -36,8 +36,8 @@ COPY --from=node-build --chown=app:app /src/server/package.json ./node-api/packa
 COPY --from=node-build --chown=app:app /src/server/node_modules ./node-api/node_modules
 COPY --from=node-build --chown=app:app /src/server/dist ./node-api/dist
 COPY --from=node-build --chown=app:app /src/server/migrations ./node-api/migrations
-COPY --chown=app:app infrastructure/render/supervisord.conf /app/supervisord.conf
-COPY --chown=app:app infrastructure/render/entrypoint.sh /app/entrypoint
+COPY --chown=app:app deploy/oracle/supervisord.conf /app/supervisord.conf
+COPY --chown=app:app deploy/oracle/entrypoint.sh /app/entrypoint
 RUN chmod 0555 /app/entrypoint
 
 ENV NODE_ENV=production \

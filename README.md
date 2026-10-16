@@ -36,7 +36,7 @@ The system follows a **Microservices Architecture** with a clear separation of c
 *   `/src`: .NET 8 Solution and Microservices source code.
 *   `/server`: Node.js API used by the React frontend for authentication, logistics ingestion, telemetry, and operations data.
 *   `/infrastructure`: Terraform and Bicep templates for automated Azure provisioning.
-*   `/infrastructure/render`: Single production image packaging for Render's **Existing Image** deployment flow.
+*   `/deploy/oracle`: Production image packaging and operations for the shared Oracle VM.
 *   PostgreSQL is the single database engine for authentication, logistics, telemetry, operations, and supply-chain data.
 *   `/pipelines`: CI/CD workflow definitions for automated testing and deployment.
 *   `/docs`: Detailed deployment guides, API flows, and architectural diagrams.
@@ -51,5 +51,5 @@ Refer to the [Deployment Guide](./docs/DEPLOYMENT_GUIDE.md) for step-by-step ins
 - [Database guide and diagrams](./docs/DATABASE.md)
 - [API reference](./docs/API.md)
 - [Deployment and rollback](./docs/DEPLOYMENT.md)
-- [Render image deployment](./docs/RENDER_IMAGE_DEPLOYMENT.md)
+- [Oracle image deployment](./deploy/oracle/README.md)
 - [Test strategy](./docs/TESTING.md)
