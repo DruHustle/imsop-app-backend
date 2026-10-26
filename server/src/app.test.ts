@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import app from './app';
-import { db } from './config/db';
+import { db, connection } from './config/db';
 import { readBounds } from './controllers/operationalReads';
 import jwt from 'jsonwebtoken';
 import { assertProductionConfiguration, getAllowedOrigins, getJwtSecret } from './config/security';
@@ -205,7 +205,7 @@ test("bounded operational reads preserve permissions, identities and event prove
     assert.throws(() => readBounds({ limit } as any));
   let rows: unknown[] = [];
   let capturedLimit = 0;
-  t.mock.method(db, "select", (fields: Record<string, unknown>) => {
+  const selectMock = t.mock.method(db, "select", (fields: Record<string, unknown>) => {
     const results =
       "total" in fields
         ? [{ total: rows.length }]
@@ -340,7 +340,7 @@ test("bounded operational reads preserve permissions, identities and event prove
     const empty = await (await read("admin", "/shipments?limit=5")).json();
     assert.equal(empty.total, 0);
     assert.deepEqual(empty.items, []);
-    t.mock.method(db, "select", () => {
+    selectMock.mock.mockImplementation(() => {
       throw new Error("isolated failure");
     });
     assert.equal((await read("admin", "/shipments?limit=5")).status, 503);
@@ -348,5 +348,34 @@ test("bounded operational reads preserve permissions, identities and event prove
     await new Promise<void>((resolve, reject) =>
       server.close((e) => (e ? reject(e) : resolve())),
     );
+  }
+});
+
+
+test('shipment DTO decodes PostgreSQL event timestamps as UTC in non-UTC processes', async t => {
+  // Replay the exact driver row shape confirmed by a read-only production query.
+  // Exercise the real ORM mapping, controller and HTTP serialization.
+  const previousTz = process.env.TZ;
+  process.env.TZ = 'Europe/Berlin';
+  t.mock.method(connection, 'query', (async () => ({
+    rows: [[17, 'UTC-PROBE', 'Origin', 'Destination', null, 'road', null, null,
+      'in_transit', null, null, '2026-10-25 06:00:00',
+      '2026-10-26 09:00:00', '2026-10-26 09:01:00', 'test-provider']],
+    fields: [], command: 'SELECT', rowCount: 1, oid: 0,
+  })) as any);
+  const server = app.listen(0);
+  try {
+    const address = server.address(); assert(address && typeof address === 'object');
+    const token = jwt.sign({id:17,email:'utc-fixture@example.test',role:'user'},getJwtSecret(),{expiresIn:'5m',issuer:'imsop-api',audience:'imsop-web'});
+    const response = await fetch(`http://127.0.0.1:${address.port}/api/operations/shipments/17`,{headers:{Cookie:`imsop_access=${token}`}});
+    assert.equal(response.status,200);
+    const item = await response.json();
+    assert.equal(item.createdAt,'2026-10-25T06:00:00.000Z');
+    assert.equal(item.observedAt,'2026-10-26T09:00:00.000Z');
+    assert.equal(item.receivedAt,'2026-10-26T09:01:00.000Z');
+    assert.equal(item.provider,'test-provider');
+  } finally {
+    if(previousTz===undefined) delete process.env.TZ; else process.env.TZ=previousTz;
+    await new Promise<void>((resolve,reject)=>server.close(e=>e?reject(e):resolve()));
   }
 });
