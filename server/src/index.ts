@@ -5,6 +5,11 @@ import { connection } from './config/db';
 
 assertProductionConfiguration();
 
+import { dispatchResetDeliveries } from './services/resetDelivery';
+let dispatching=false;
+const deliveryTimer=setInterval(async()=>{if(dispatching)return;dispatching=true;try{await dispatchResetDeliveries();}catch{console.warn(JSON.stringify({event:'reset_worker_failed'}));}finally{dispatching=false;}},5000);
+deliveryTimer.unref();
+
 const port = process.env.PORT || 3001;
 
 const server = app.listen(port, () => {
@@ -15,6 +20,7 @@ let shuttingDown = false;
 const shutdown = (signal: string) => {
   if (shuttingDown) return;
   shuttingDown = true;
+  clearInterval(deliveryTimer);
   console.log(`${signal} received; stopping new connections`);
   server.close(async error => {
     if (error) {

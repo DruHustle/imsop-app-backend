@@ -29,15 +29,19 @@ export function isEmailConfigured(): boolean {
   return Boolean((process.env.GMAIL_CLIENT_ID && process.env.GMAIL_CLIENT_SECRET && process.env.GMAIL_REFRESH_TOKEN) || process.env.GMAIL_APP_PASSWORD);
 }
 
-export async function sendPasswordResetEmail(recipient: string, resetUrl: string): Promise<void> {
+export async function sendPasswordResetEmail(recipient: string, resetUrl: string, deliveryId?: string): Promise<void> {
   const safeUrl = resetUrl.replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
   const subject = 'Reset your IMSOP password';
   const text = `A password reset was requested for your IMSOP account. This link expires in 15 minutes:\n\n${resetUrl}\n\nIf you did not request this, ignore this message.`;
   const html = `<p>A password reset was requested for your IMSOP account.</p><p><a href="${safeUrl}">Reset password</a></p><p>This link expires in 15 minutes. If you did not request this, ignore this message.</p>`;
+  if (process.env.EMAIL_PROVIDER === 'smtp' && process.env.NODE_ENV !== 'production') {
+    await nodemailer.createTransport({host:process.env.SMTP_HOST || '127.0.0.1',port:Number(process.env.SMTP_PORT || 1025),secure:false}).sendMail({from:'IMSOP <recovery@imsop.test>',to:recipient,subject,text,html,messageId:`<${deliveryId}@imsop.test>`});
+    return;
+  }
   if (provider() === 'gmail') {
     await gmailTransport().sendMail({ from: `IMSOP Notifications <${gmailSender()}>`, to: recipient, subject, text, html });
     return;
   }
-  const { error } = await resendClient().emails.send({ from: resendSender(), to: recipient, subject, text, html });
+  const { error } = await resendClient().emails.send({ from: resendSender(), to: recipient, subject, text, html }, {idempotencyKey:deliveryId,signal:AbortSignal.timeout(15000)});
   if (error) throw new Error(`Resend delivery failed: ${error.message}`);
 }

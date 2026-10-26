@@ -6,7 +6,9 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { AuthRequest } from '../middleware/auth';
 import { getJwtSecret } from '../config/security';
-import { isEmailConfigured, sendPasswordResetEmail } from '../services/emailService';
+import { connection } from '../config/db';
+import { randomUUID } from 'node:crypto';
+import { queuePasswordReset } from '../services/resetDelivery';
 
 const authCookieOptions = () => ({
   httpOnly: true,
@@ -20,29 +22,19 @@ const publicUser = (user: typeof users.$inferSelect) => ({
   id: String(user.id), email: user.email, name: user.name, role: user.role,
 });
 
-export const login = async (req: Request, res: Response) => {
-  const { email, password } = req.body;
-
-  try {
-    const user = await db.query.users.findFirst({
-      where: eq(users.email, email),
-    });
-
-    if (!user || !(await bcrypt.compare(password, user.password))) {
-      return res.status(401).json({ error: 'Invalid email or password' });
-    }
-
-    const token = jwt.sign(
-      { id: user.id, email: user.email, role: user.role },
-      getJwtSecret(),
-      { expiresIn: '15m', issuer: 'imsop-api', audience: 'imsop-web' }
-    );
-
-    res.cookie('imsop_access', token, authCookieOptions());
-    res.json({ user: publicUser(user) });
-  } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
-  }
+async function createSession(user: typeof users.$inferSelect) {
+ const sid=randomUUID();
+ await connection.query(`INSERT INTO auth_sessions(id,user_id,workspace_id,version,role,expires_at)
+ VALUES($1,$2,$3,$4,$5,now()+interval '15 minutes')`,[sid,user.id,user.activeWorkspaceId,user.sessionVersion,user.role]);
+ return jwt.sign({id:user.id,sid},getJwtSecret(),{expiresIn:'15m',issuer:'imsop-api',audience:'imsop-web'});
+}
+export const login = async (req:Request,res:Response) => {
+ try {
+  const user=await db.query.users.findFirst({where:eq(users.email,req.body.email)});
+  if(!user || user.disabled || !(await bcrypt.compare(req.body.password,user.password))) return res.status(401).json({error:'Invalid email or password'});
+  res.cookie('imsop_access',await createSession(user),authCookieOptions());
+  res.json({user:publicUser(user)});
+ } catch { res.status(503).json({error:'Sign in temporarily unavailable'}); }
 };
 
 export const register = async (req: Request, res: Response) => {
@@ -58,10 +50,7 @@ export const register = async (req: Request, res: Response) => {
     }).onConflictDoNothing({ target: users.email }).returning();
 
     if (!newUser) return res.status(409).json({ error: 'User already exists' });
-    const token = jwt.sign(
-      { id: newUser.id, email: newUser.email, role: newUser.role }, getJwtSecret(),
-      { expiresIn: '15m', issuer: 'imsop-api', audience: 'imsop-web' },
-    );
+    const token = await createSession(newUser);
     res.cookie('imsop_access', token, authCookieOptions());
     res.status(201).json({ user: publicUser(newUser) });
   } catch (error) {
@@ -86,49 +75,29 @@ export const getCurrentUser = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const logout = (_req: Request, res: Response) => {
-  res.clearCookie('imsop_access', {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-    path: '/',
-  });
+export const sessionInfo = (req: AuthRequest,res:Response) => res.json(req.user);
+export const logout = async (req: AuthRequest, res: Response) => {
+ try {
+  await connection.query('UPDATE auth_sessions SET revoked_at=now() WHERE id=$1',[req.user!.sessionId]);
+  res.clearCookie('imsop_access',{httpOnly:true,secure:process.env.NODE_ENV==='production',sameSite:process.env.NODE_ENV==='production'?'none':'lax',path:'/'});
   res.status(204).end();
+ } catch { res.status(503).json({error:'Sign out could not be confirmed. Retry sign out.'}); }
 };
-
-export const requestReset = async (req: Request, res: Response) => {
-  const { email } = req.body;
-  const user = await db.query.users.findFirst({ where: eq(users.email, email) });
-  const token = user ? jwt.sign(
-    { id: user.id, purpose: 'password-reset', resetVersion: user.passwordResetVersion }, getJwtSecret(),
-    { expiresIn: '15m', issuer: 'imsop-api', audience: 'imsop-password-reset' },
-  ) : undefined;
-  if (token && isEmailConfigured()) {
-    const baseUrl = process.env.PASSWORD_RESET_BASE_URL || 'http://localhost:5173/#/reset-password';
-    const resetUrl = `${baseUrl}?token=${encodeURIComponent(token)}`;
-    try {
-      await sendPasswordResetEmail(user!.email, resetUrl);
-    } catch (error) {
-      console.error('[auth] Password reset email delivery failed', { userId: user!.id, error });
-    }
-  }
-  res.status(202).json({ success: true, message: 'If the account exists, a reset link has been sent.', ...(process.env.NODE_ENV !== 'production' && token && !isEmailConfigured() && { token }) });
+export const requestReset = async (req: Request,res:Response) => {
+ try {
+  await queuePasswordReset(req.body.email);
+  res.status(202).json({success:true,message:'If this account is eligible, a reset link has been requested. Delivery may take a few minutes.'});
+ } catch { res.status(503).json({error:'Recovery requests are temporarily unavailable. Please retry.'}); }
 };
-
-export const resetPassword = async (req: Request, res: Response) => {
-  const { token, newPassword } = req.body;
-  try {
-    const decoded = jwt.verify(token, getJwtSecret(), { issuer: 'imsop-api', audience: 'imsop-password-reset' });
-    if (typeof decoded === 'string' || decoded.purpose !== 'password-reset' || typeof decoded.id !== 'number' || typeof decoded.resetVersion !== 'number') {
-      return res.status(400).json({ error: 'Invalid or expired reset token' });
-    }
-    const user = await db.query.users.findFirst({ where: eq(users.id, decoded.id) });
-    if (!user || user.passwordResetVersion !== decoded.resetVersion) return res.status(400).json({ error: 'Invalid or expired reset token' });
-    await db.update(users).set({ password: await bcrypt.hash(newPassword, 12), passwordResetVersion: user.passwordResetVersion + 1 }).where(eq(users.id, decoded.id));
-    res.json({ success: true, message: 'Password reset successfully' });
-  } catch {
-    res.status(400).json({ error: 'Invalid or expired reset token' });
-  }
+export const resetPassword = async (req: Request,res:Response) => {
+ try {
+  const d=jwt.verify(req.body.token,getJwtSecret(),{algorithms:['HS256'],issuer:'imsop-api',audience:'imsop-password-reset'});
+  if(typeof d==='string' || d.purpose!=='password-reset' || !Number.isInteger(d.id) || !Number.isInteger(d.resetVersion)) throw new Error();
+  const result=await connection.query(`UPDATE users SET password=$1,password_reset_version=password_reset_version+1,session_version=session_version+1
+   WHERE id=$2 AND password_reset_version=$3 AND NOT disabled RETURNING id`,[await bcrypt.hash(req.body.newPassword,12),d.id,d.resetVersion]);
+  if(result.rowCount!==1) throw new Error();
+  res.json({success:true,message:'Password reset. Sign in with your new password.'});
+ } catch { res.status(400).json({error:'This reset link is invalid, expired or already used. Request a new link.'}); }
 };
 
 export const updateProfile = async (req: AuthRequest, res: Response) => {
@@ -163,10 +132,9 @@ export const changePassword = async (req: AuthRequest, res: Response) => {
     }
 
     const hashedPassword = await bcrypt.hash(newPassword, 12);
-    await db.update(users).set({
-      password: hashedPassword,
-      passwordResetVersion: user.passwordResetVersion + 1,
-    }).where(eq(users.id, Number(id)));
+    const changed=await connection.query(`UPDATE users SET password=$1,password_reset_version=password_reset_version+1,session_version=session_version+1
+     WHERE id=$2 AND password_reset_version=$3 AND session_version=$4 AND NOT disabled RETURNING id`,[hashedPassword,user.id,user.passwordResetVersion,user.sessionVersion]);
+    if(changed.rowCount!==1) return res.status(409).json({error:'Account changed. Sign in and retry.'});
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: 'Failed to change password' });

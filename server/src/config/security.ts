@@ -34,6 +34,7 @@ export function assertProductionConfiguration(): void {
       .some(value => value && PLACEHOLDER_PATTERN.test(value))) {
       throw new Error('Production configuration contains unreplaced placeholders');
     }
+    if (!/^[a-f0-9]{64}$/i.test(process.env.RESET_DELIVERY_KEY || '')) throw new Error('RESET_DELIVERY_KEY must be a 32-byte hex encryption key');
     const emailProvider = process.env.EMAIL_PROVIDER || 'gmail';
     const gmailConfigured = Boolean((process.env.GMAIL_CLIENT_ID && process.env.GMAIL_CLIENT_SECRET && process.env.GMAIL_REFRESH_TOKEN) || process.env.GMAIL_APP_PASSWORD);
     const resendConfigured = Boolean(process.env.RESEND_API_KEY && process.env.EMAIL_FROM);

@@ -1,42 +1,42 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { createHash } from 'node:crypto';
 import { Pool } from 'pg';
 import './config/env';
 
-async function migrate() {
-  const connectionString = process.env.DATABASE_URL
-    || 'postgresql://imsop:imsop-postgres-local@localhost:5432/imsop_supply_chain';
+// Adopt only the exact reviewed legacy migration; never bless arbitrary changed SQL.
+const legacyChecksums: Record<string,string> = { '000_initial_schema.sql': 'e51d9f630c504255bf80d636328137f37e682d49d8b3c65bb6eea8f4ba634dcc' };
+export async function migrate(connectionString = process.env.MIGRATION_DATABASE_URL || process.env.DATABASE_URL, directory = path.resolve(process.cwd(), 'migrations')) {
+  if (!connectionString) throw new Error('A migration database URL is required');
   const pool = new Pool({ connectionString });
   const connection = await pool.connect();
   try {
-    await connection.query(`CREATE TABLE IF NOT EXISTS schema_migrations (
-      name VARCHAR(255) PRIMARY KEY,
-      applied_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-    )`);
-    const migrationsDirectory = path.resolve(process.cwd(), 'migrations');
-    const files = (await fs.readdir(migrationsDirectory)).filter(file => file.endsWith('.sql')).sort();
+    await connection.query("SET lock_timeout = '30s'");
+    await connection.query('SELECT pg_advisory_lock(491697, 1)');
+    await connection.query(`CREATE TABLE IF NOT EXISTS schema_migrations (name varchar(255) PRIMARY KEY, applied_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, checksum text)`);
+    await connection.query('ALTER TABLE schema_migrations ADD COLUMN IF NOT EXISTS checksum text');
+    const files = (await fs.readdir(directory)).filter(file => file.endsWith('.sql')).sort();
     for (const file of files) {
-      const result = await connection.query('SELECT name FROM schema_migrations WHERE name = $1', [file]);
-      if (result.rowCount) continue;
-      const sql = await fs.readFile(path.join(migrationsDirectory, file), 'utf8');
+      const body = await fs.readFile(path.join(directory, file), 'utf8');
+      const checksum = createHash('sha256').update(body).digest('hex');
+      const result = await connection.query('SELECT checksum FROM schema_migrations WHERE name=$1', [file]);
+      if (result.rowCount) {
+        const prior = result.rows[0].checksum || legacyChecksums[file];
+        if (prior !== checksum) throw new Error(`Migration checksum mismatch: ${file}`);
+        if (!result.rows[0].checksum) await connection.query('UPDATE schema_migrations SET checksum=$1 WHERE name=$2', [checksum,file]);
+        continue;
+      }
       await connection.query('BEGIN');
       try {
-        await connection.query(sql);
-        await connection.query('INSERT INTO schema_migrations (name) VALUES ($1)', [file]);
+        await connection.query(body);
+        await connection.query('INSERT INTO schema_migrations(name,checksum) VALUES($1,$2)', [file,checksum]);
         await connection.query('COMMIT');
         console.log(`Applied migration ${file}`);
-      } catch (error) {
-        await connection.query('ROLLBACK');
-        throw error;
-      }
+      } catch(error) { await connection.query('ROLLBACK'); throw error; }
     }
   } finally {
-    connection.release();
-    await pool.end();
+    await connection.query('SELECT pg_advisory_unlock(491697, 1)').catch(() => undefined);
+    connection.release(); await pool.end();
   }
 }
-
-migrate().catch(error => {
-  console.error('Database migration failed', error);
-  process.exitCode = 1;
-});
+if (require.main === module) migrate().catch(() => { console.error('Database migration failed; inspect migration ledger/configuration'); process.exitCode=1; });

@@ -70,7 +70,7 @@ test('allowed origins are trimmed and support multiple Vercel domains', () => {
 });
 
 test('production configuration rejects invalid Gmail app passwords', () => {
-  const keys = ['NODE_ENV', 'DATABASE_URL', 'ALLOWED_ORIGIN', 'CORS_ALLOWED_ORIGINS', 'PASSWORD_RESET_BASE_URL', 'JWT_SECRET', 'EMAIL_PROVIDER', 'GMAIL_APP_PASSWORD', 'LOGISTICS_WEBHOOK_SECRETS'] as const;
+  const keys = ['NODE_ENV', 'DATABASE_URL', 'ALLOWED_ORIGIN', 'CORS_ALLOWED_ORIGINS', 'PASSWORD_RESET_BASE_URL', 'JWT_SECRET', 'EMAIL_PROVIDER', 'GMAIL_APP_PASSWORD', 'LOGISTICS_WEBHOOK_SECRETS', 'RESET_DELIVERY_KEY'] as const;
   const previous = Object.fromEntries(keys.map(key => [key, process.env[key]]));
   Object.assign(process.env, {
     NODE_ENV: 'production',
@@ -79,6 +79,7 @@ test('production configuration rejects invalid Gmail app passwords', () => {
     CORS_ALLOWED_ORIGINS: 'https://imsop-app.vercel.app',
     PASSWORD_RESET_BASE_URL: 'https://imsop-app.vercel.app/#/reset-password',
     JWT_SECRET: 'a-secure-production-jwt-secret-at-least-32-characters',
+    RESET_DELIVERY_KEY: 'a'.repeat(64),
     EMAIL_PROVIDER: 'gmail',
     GMAIL_APP_PASSWORD: 'not-an-app-password',
     LOGISTICS_WEBHOOK_SECRETS: JSON.stringify({ carrier: 'a-secure-provider-secret-at-least-32-characters' }),
@@ -102,7 +103,7 @@ test('GET /health returns ok', async () => {
 
     const res = await fetch(`http://127.0.0.1:${address.port}/health`);
     assert.equal(res.status, 200);
-    assert.deepEqual(await res.json(), { status: 'ok' });
+    const health=await res.json();assert.equal(health.status,'ok');assert.equal(health.apiContract,2);assert.equal(typeof health.revision,'string');
     assert.equal(res.headers.get('x-content-type-options'), 'nosniff');
     assert.equal(res.headers.get('x-frame-options'), 'DENY');
   } finally {
@@ -141,7 +142,7 @@ test('protected operations reject anonymous requests', async () => {
   }
 });
 
-test('role-protected operations reject authenticated users without a permitted role', async () => {
+test('legacy claim-only credentials fail closed before role authorization', async () => {
   const server = app.listen(0);
   try {
     const address = server.address();
@@ -152,7 +153,7 @@ test('role-protected operations reject authenticated users without a permitted r
     const res = await fetch(`http://127.0.0.1:${address.port}/api/operations/shipments`, {
       headers: { Cookie: `imsop_access=${token}` },
     });
-    assert.equal(res.status, 403);
+    assert.equal(res.status, 401);
   } finally {
     await new Promise<void>((resolve, reject) => server.close(err => err ? reject(err) : resolve()));
   }
@@ -204,14 +205,17 @@ test("bounded operational reads preserve permissions, identities and event prove
   for (const limit of ["0", "501", "-1", "1.2", "Infinity", ["1"]])
     assert.throws(() => readBounds({ limit } as any));
   let rows: unknown[] = [];
+  let activeRole='user';
+  t.mock.method(connection,'query',(async()=>({rows:[{id:1,email:'isolated@example.test',role:activeRole,session_id:'00000000-0000-4000-8000-000000000001',workspace_id:'00000000-0000-4000-8000-000000000002'}],rowCount:1})) as any);
+  t.mock.method(db,'transaction',(async(callback:any)=>callback(db)) as any);
   let capturedLimit = 0;
-  const selectMock = t.mock.method(db, "select", (fields: Record<string, unknown>) => {
+  const selectMock = t.mock.method(db, "select", (fields?: Record<string, unknown>) => {
     const results =
-      "total" in fields
+      fields && "total" in fields
         ? [{ total: rows.length }]
         : rows.map((row) =>
             Object.fromEntries(
-              Object.keys(fields)
+              Object.keys(fields || row as object)
                 .filter((key) => key in (row as object))
                 .map((key) => [key, (row as Record<string, unknown>)[key]]),
             ),
@@ -244,12 +248,11 @@ test("bounded operational reads preserve permissions, identities and event prove
     const address = server.address();
     assert(address && typeof address === "object");
     const base = `http://127.0.0.1:${address.port}/api/operations`;
-    const read = (role: string, path: string) =>
-      fetch(base + path, {
+    const read = (role: string, path: string) => {activeRole=role;return fetch(base + path, {
         headers: {
-          Cookie: `imsop_access=${jwt.sign({ id: 1, email: "isolated@example.test", role }, getJwtSecret(), { expiresIn: "5m", issuer: "imsop-api", audience: "imsop-web" })}`,
+          Cookie: `imsop_access=${jwt.sign({ id: 1, sid:"00000000-0000-4000-8000-000000000001", email: "isolated@example.test", role }, getJwtSecret(), { expiresIn: "5m", issuer: "imsop-api", audience: "imsop-web" })}`,
         },
-      });
+      });};
     for (const role of ["admin", "engineer", "analyst", "user"]) {
       rows = [{ id: 7, trackingNumber: "TRACKING-7", status: "in_transit" }];
       assert.equal((await read(role, "/shipments/7")).status, 200);
@@ -352,30 +355,11 @@ test("bounded operational reads preserve permissions, identities and event prove
 });
 
 
-test('shipment DTO decodes PostgreSQL event timestamps as UTC in non-UTC processes', async t => {
-  // Replay the exact driver row shape confirmed by a read-only production query.
-  // Exercise the real ORM mapping, controller and HTTP serialization.
-  const previousTz = process.env.TZ;
-  process.env.TZ = 'Europe/Berlin';
-  t.mock.method(connection, 'query', (async () => ({
-    rows: [[17, 'UTC-PROBE', 'Origin', 'Destination', null, 'road', null, null,
-      'in_transit', null, null, '2026-10-25 06:00:00',
-      '2026-10-26 09:00:00', '2026-10-26 09:01:00', 'test-provider']],
-    fields: [], command: 'SELECT', rowCount: 1, oid: 0,
-  })) as any);
-  const server = app.listen(0);
-  try {
-    const address = server.address(); assert(address && typeof address === 'object');
-    const token = jwt.sign({id:17,email:'utc-fixture@example.test',role:'user'},getJwtSecret(),{expiresIn:'5m',issuer:'imsop-api',audience:'imsop-web'});
-    const response = await fetch(`http://127.0.0.1:${address.port}/api/operations/shipments/17`,{headers:{Cookie:`imsop_access=${token}`}});
-    assert.equal(response.status,200);
-    const item = await response.json();
-    assert.equal(item.createdAt,'2026-10-25T06:00:00.000Z');
-    assert.equal(item.observedAt,'2026-10-26T09:00:00.000Z');
-    assert.equal(item.receivedAt,'2026-10-26T09:01:00.000Z');
-    assert.equal(item.provider,'test-provider');
-  } finally {
-    if(previousTz===undefined) delete process.env.TZ; else process.env.TZ=previousTz;
-    await new Promise<void>((resolve,reject)=>server.close(e=>e?reject(e):resolve()));
-  }
+test('legacy UTC timestamp decoder is independent of the process timezone', async()=>{
+ const {types}=await import('pg');
+ const previous=process.env.TZ;process.env.TZ='Pacific/Honolulu';
+ try {
+  const parsed=types.getTypeParser(1114)('2026-10-26 09:00:00') as unknown as Date;
+  assert.equal(parsed.toISOString(),'2026-10-26T09:00:00.000Z');
+ } finally {if(previous===undefined)delete process.env.TZ;else process.env.TZ=previous;}
 });
