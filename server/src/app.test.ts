@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import app from './app';
+import { db } from './config/db';
+import { readBounds } from './controllers/operationalReads';
 import jwt from 'jsonwebtoken';
 import { assertProductionConfiguration, getAllowedOrigins, getJwtSecret } from './config/security';
 import crypto from 'node:crypto';
@@ -192,5 +194,159 @@ test('signed logistics webhooks validate canonical payloads before database acce
     assert.equal((await res.json()).error, 'Invalid request');
   } finally {
     await new Promise<void>((resolve, reject) => server.close(err => err ? reject(err) : resolve()));
+  }
+});
+
+// Isolated database doubles exercise the actual auth middleware and read routes.
+// No fixture writes, production database connections, or provider calls occur.
+test("bounded operational reads preserve permissions, identities and event provenance", async (t) => {
+  assert.deepEqual(readBounds({}), { limit: 100, offset: 0 });
+  for (const limit of ["0", "501", "-1", "1.2", "Infinity", ["1"]])
+    assert.throws(() => readBounds({ limit } as any));
+  let rows: unknown[] = [];
+  let capturedLimit = 0;
+  t.mock.method(db, "select", (fields: Record<string, unknown>) => {
+    const results =
+      "total" in fields
+        ? [{ total: rows.length }]
+        : rows.map((row) =>
+            Object.fromEntries(
+              Object.keys(fields)
+                .filter((key) => key in (row as object))
+                .map((key) => [key, (row as Record<string, unknown>)[key]]),
+            ),
+          );
+    const chain: any = {
+      from() {
+        return this;
+      },
+      orderBy() {
+        return this;
+      },
+      where() {
+        return this;
+      },
+      limit(n: number) {
+        capturedLimit = n;
+        return this;
+      },
+      offset() {
+        return this;
+      },
+      then(resolve: (r: unknown[]) => void) {
+        resolve(results);
+      },
+    };
+    return chain;
+  });
+  const server = app.listen(0);
+  try {
+    const address = server.address();
+    assert(address && typeof address === "object");
+    const base = `http://127.0.0.1:${address.port}/api/operations`;
+    const read = (role: string, path: string) =>
+      fetch(base + path, {
+        headers: {
+          Cookie: `imsop_access=${jwt.sign({ id: 1, email: "isolated@example.test", role }, getJwtSecret(), { expiresIn: "5m", issuer: "imsop-api", audience: "imsop-web" })}`,
+        },
+      });
+    for (const role of ["admin", "engineer", "analyst", "user"]) {
+      rows = [{ id: 7, trackingNumber: "TRACKING-7", status: "in_transit" }];
+      assert.equal((await read(role, "/shipments/7")).status, 200);
+      assert.equal((await read(role, "/shipments?limit=5")).status, 200);
+      assert.equal(
+        (await read(role, "/orders?limit=5")).status,
+        role === "user" ? 403 : 200,
+      );
+      assert.equal(
+        (await read(role, "/shipments/7/events?limit=50")).status,
+        200,
+      );
+      const ordersResponse = await read(role, "/orders/101");
+      assert.equal(ordersResponse.status, role === "user" ? 403 : 200);
+      const reports = await read(role, "/reports/access");
+      assert.equal(
+        reports.status,
+        ["admin", "analyst"].includes(role) ? 200 : 403,
+      );
+      for (const path of ["/shipments/export/report", "/orders/export/report"])
+        if (!["admin", "analyst"].includes(role))
+          assert.equal((await read(role, path)).status, 403);
+    }
+    for (const path of [
+      "/shipments",
+      "/orders",
+      "/shipments/7",
+      "/shipments/7/events",
+      "/orders/101",
+      "/reports/access",
+    ])
+      assert.equal((await fetch(base + path)).status, 401);
+    assert.equal((await read("admin", "/shipments/7a")).status, 400);
+    assert.equal(
+      (await read("admin", "/orders/5096db96-c450-4cb5-aefe-000000000001"))
+        .status,
+      400,
+    );
+    assert.equal((await read("admin", "/shipments?limit=501")).status, 400);
+    rows = [];
+    assert.equal((await read("admin", "/shipments/999")).status, 404);
+    assert.equal((await read("admin", "/shipments/999/events")).status, 404);
+    rows = [
+      {
+        id: 8,
+        trackingNumber: "NOT-THE-ID",
+        status: "in_transit",
+        provider: "test-feed",
+        observedAt: "2026-10-24T06:00:00Z",
+        receivedAt: "2026-10-24T06:01:00Z",
+      },
+    ];
+    const shipment = await (await read("user", "/shipments/8")).json();
+    assert.equal(shipment.id, 8);
+    assert.equal(shipment.trackingNumber, "NOT-THE-ID");
+    assert.equal(shipment.observedAt, "2026-10-24T06:00:00Z");
+    const list = await (
+      await read("admin", "/shipments?limit=12&offset=0")
+    ).json();
+    assert.equal(capturedLimit, 12);
+    assert.equal(list.total, 1);
+    assert.equal(list.limit, 12);
+    assert.equal(list.source, "node.shipments");
+    rows = [
+      {
+        id: 9,
+        trackingNumber: "NOT-THE-ID",
+        provider: "test-feed",
+        eventType: "in_transit",
+        occurredAt: "2026-10-24T06:00:00Z",
+        receivedAt: "2026-10-24T06:01:00Z",
+        payload: "private-webhook-payload",
+      },
+    ];
+    const eventPage = await (
+      await read("user", "/shipments/8/events?limit=50")
+    ).json();
+    assert.deepEqual(Object.keys(eventPage.items[0]).sort(), [
+      "eventType",
+      "id",
+      "occurredAt",
+      "provider",
+      "receivedAt",
+    ]);
+    assert.equal(eventPage.items[0].occurredAt, "2026-10-24T06:00:00Z");
+    assert.equal(eventPage.items[0].payload, undefined);
+    rows = [];
+    const empty = await (await read("admin", "/shipments?limit=5")).json();
+    assert.equal(empty.total, 0);
+    assert.deepEqual(empty.items, []);
+    t.mock.method(db, "select", () => {
+      throw new Error("isolated failure");
+    });
+    assert.equal((await read("admin", "/shipments?limit=5")).status, 503);
+  } finally {
+    await new Promise<void>((resolve, reject) =>
+      server.close((e) => (e ? reject(e) : resolve())),
+    );
   }
 });

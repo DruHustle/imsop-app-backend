@@ -20,3 +20,7 @@ The browser suite uses isolated contexts. It covers:
 
 Real-account/database integration and email delivery require test infrastructure and provider credentials. Run those checks in a protected staging environment, never with production customer data.
 
+
+## Operational read workflow coverage
+
+`cd server && pnpm test && pnpm build` covers the bounded read API, stable numeric IDs, validation, missing records, unavailable stores, anonymous rejection, and all four role permissions (including orders and report access). Route tests use isolated database doubles and never access configured production records. Frontend desktop/mobile tests and screenshot evidence live in the independent frontend repository under `e2e/` and `verification/`.
