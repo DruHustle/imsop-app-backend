@@ -19,14 +19,20 @@ export function readBounds(query: Request["query"]) {
   return { limit, offset: integer(query.offset, 0, 1_000_000) };
 }
 
+// Raw timestamp subqueries bypass Drizzle column decoding unless mapped explicitly.
+// Keep event evidence in UTC just like the typed event-history DTO.
 const shipmentFields = {
   ...getTableColumns(shipments),
   observedAt: sql<
     string | null
-  >`(select occurred_at from logistics_events e where e.tracking_number = ${shipments.trackingNumber} order by occurred_at desc, id desc limit 1)`,
+  >`(select occurred_at from logistics_events e where e.tracking_number = ${shipments.trackingNumber} order by occurred_at desc, id desc limit 1)`.mapWith(
+    logisticsEvents.occurredAt,
+  ),
   receivedAt: sql<
     string | null
-  >`(select received_at from logistics_events e where e.tracking_number = ${shipments.trackingNumber} order by occurred_at desc, id desc limit 1)`,
+  >`(select received_at from logistics_events e where e.tracking_number = ${shipments.trackingNumber} order by occurred_at desc, id desc limit 1)`.mapWith(
+    logisticsEvents.receivedAt,
+  ),
   provider: sql<
     string | null
   >`(select provider from logistics_events e where e.tracking_number = ${shipments.trackingNumber} order by occurred_at desc, id desc limit 1)`,
