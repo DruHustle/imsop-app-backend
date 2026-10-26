@@ -12,5 +12,7 @@ if [ -z "${ConnectionStrings__DefaultConnection:-}" ]; then
 fi
 
 cd /app/node-api
-node dist/migrate.js
+if [ "${RUN_NODE_MIGRATIONS:-false}" = "true" ]; then
+  node dist/migrate.js
+fi
 exec /usr/bin/supervisord -c /app/supervisord.conf

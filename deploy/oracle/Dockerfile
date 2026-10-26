@@ -19,6 +19,10 @@ RUN pnpm install --frozen-lockfile \
     && pnpm prune --prod
 
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
+ARG APP_REVISION=unknown
+LABEL org.opencontainers.image.revision=$APP_REVISION org.opencontainers.image.title="IMSOP backend"
+ENV APP_REVISION=$APP_REVISION
+
 USER root
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates curl supervisor \

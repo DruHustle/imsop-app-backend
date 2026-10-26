@@ -1,3 +1,4 @@
+# UNSUPPORTED HISTORICAL EXAMPLE. See ../README.md. Do not deploy.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
