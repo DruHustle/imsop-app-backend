@@ -1,105 +1,49 @@
 using Microsoft.AspNetCore.Mvc;
-using IMSOP.Common.Models;
-using IMSOP.SupplyChainService.Entities;
-using IMSOP.SupplyChainService.Data;
-using Azure.Messaging.ServiceBus;
-using Newtonsoft.Json;
 using Microsoft.AspNetCore.Authorization;
-
-namespace IMSOP.SupplyChainService.Controllers
-{
-    [ApiController]
-    [Authorize(Roles = "admin,engineer,analyst")]
-    [Route("api/v1/[controller]")]
-    public class OrdersController : ControllerBase
-    {
-        private readonly ApplicationDbContext _context;
-        private readonly ServiceBusClient _serviceBusClient;
-        private readonly IConfiguration _configuration;
-        private readonly ILogger<OrdersController> _logger;
-
-        public OrdersController(
-            ApplicationDbContext context,
-            ServiceBusClient serviceBusClient,
-            IConfiguration configuration,
-            ILogger<OrdersController> logger)
-        {
-            _context = context;
-            _serviceBusClient = serviceBusClient;
-            _configuration = configuration;
-            _logger = logger;
-        }
-
-        [HttpPost]
-        public async Task<ActionResult<ApiResponse<PurchaseOrder>>> CreateOrder([FromBody] PurchaseOrder order)
-        {
-            if (order.OrganizationId == Guid.Empty)
-            {
-                ModelState.AddModelError(nameof(order.OrganizationId), "OrganizationId is required.");
-            }
-
-            if (order.SupplierId == Guid.Empty)
-            {
-                ModelState.AddModelError(nameof(order.SupplierId), "SupplierId is required.");
-            }
-
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(new ApiResponse<PurchaseOrder> 
-                { 
-                    Success = false, 
-                    Error = new ApiError { Code = "VALIDATION_ERROR", Message = "Invalid order data" } 
-                });
-            }
-
-            // 2. Save to Database
-            order.Status = "draft";
-            _context.PurchaseOrders.Add(order);
-            await _context.SaveChangesAsync();
-
-            // 3. Decoupling & Queuing (Azure Service Bus)
-            var serviceBusEnabled = _configuration.GetValue("ServiceBus:Enabled", false);
-            if (serviceBusEnabled)
-            {
-                var queueName = _configuration["ServiceBus:OrderQueueName"];
-                if (string.IsNullOrWhiteSpace(queueName))
-                {
-                    _logger.LogWarning("ServiceBus is enabled, but ServiceBus:OrderQueueName is not configured.");
-                }
-                else
-                {
-                    try
-                    {
-                        var sender = _serviceBusClient.CreateSender(queueName);
-                        var messageBody = JsonConvert.SerializeObject(order);
-                        var message = new ServiceBusMessage(messageBody);
-                        await sender.SendMessageAsync(message);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogWarning(ex, "Failed to enqueue purchase order {OrderId} to Service Bus.", order.Id);
-                    }
-                }
-            }
-
-            return CreatedAtAction(nameof(GetOrder), new { id = order.Id },
-                new ApiResponse<PurchaseOrder> { Success = true, Data = order });
-        }
-
-        [HttpGet("{id:guid}")]
-        public async Task<ActionResult<ApiResponse<PurchaseOrder>>> GetOrder(Guid id)
-        {
-            var order = await _context.PurchaseOrders.FindAsync(id);
-            if (order is null)
-            {
-                return NotFound(new ApiResponse<PurchaseOrder>
-                {
-                    Success = false,
-                    Error = new ApiError { Code = "ORDER_NOT_FOUND", Message = "Order not found" }
-                });
-            }
-
-            return Ok(new ApiResponse<PurchaseOrder> { Success = true, Data = order });
-        }
-    }
+using Microsoft.EntityFrameworkCore;
+using IMSOP.SupplyChainService.Data;
+using IMSOP.SupplyChainService.Entities;
+using IMSOP.Common.Models;
+using System.ComponentModel.DataAnnotations;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+namespace IMSOP.SupplyChainService.Controllers;
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+public class CreateOrderRequest {
+ public Guid SupplierId {get;set;}
+ [Required,MaxLength(100)] public string OrderNumber {get;set;}="";
+ [Range(typeof(decimal),"0.01","79228162514264337593543950335",ParseLimitsInInvariantCulture=true)] public decimal TotalAmount {get;set;}
+}
+[ApiController,Authorize(Roles="admin,engineer,analyst"),Route("api/v1/[controller]")]
+public class OrdersController(ApplicationDbContext context,IConfiguration config) : ControllerBase {
+ [HttpPost,Authorize(Roles="admin,engineer")]
+ public async Task<ActionResult<ApiResponse<PurchaseOrder>>> CreateOrder([FromBody] CreateOrderRequest request,[FromHeader(Name="Idempotency-Key")] string? key,CancellationToken ct) {
+  if(!context.OrganizationId.HasValue)return Forbid();
+  if(string.IsNullOrWhiteSpace(key)||key.Length>100||!System.Text.RegularExpressions.Regex.IsMatch(key,"^[a-zA-Z0-9_-]+$")||string.IsNullOrWhiteSpace(request.OrderNumber))return BadRequest(new{error="A stable Idempotency-Key and order number are required"});
+  if(!await context.Suppliers.AnyAsync(s=>s.Id==request.SupplierId && s.Status=="active",ct))return BadRequest(new{error="Choose an active supplier in your organization"});
+  var hash=Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(request))));
+  await using var tx=await context.Database.BeginTransactionAsync(ct);
+  var lockIdentity=$"{context.OrganizationId}:{key}";
+  await context.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(hashtextextended({lockIdentity},0))",ct);
+  var prior=await context.PurchaseOrders.SingleOrDefaultAsync(o=>o.IdempotencyKey==key,ct);
+  if(prior!=null){if(prior.RequestHash!=hash)return Conflict(new{error="Idempotency-Key was used for different content"});await tx.CommitAsync(ct);return Ok(new ApiResponse<PurchaseOrder>{Success=true,Data=prior});}
+  var enabled=config.GetValue("ServiceBus:Enabled",false);
+  var order=new PurchaseOrder{OrganizationId=context.OrganizationId.Value,SupplierId=request.SupplierId,OrderNumber=request.OrderNumber.Trim(),TotalAmount=request.TotalAmount,Status="draft",IdempotencyKey=key,RequestHash=hash,DispatchState=enabled?"pending":"disabled"};
+  context.PurchaseOrders.Add(order);
+  context.OrderOutbox.Add(new OrderOutbox{OrderId=order.Id,State=order.DispatchState,Body=JsonSerializer.Serialize(new{contractVersion=2,messageId=order.Id,orderId=order.Id,organizationId=order.OrganizationId,supplierId=order.SupplierId,order.OrderNumber,order.TotalAmount})});
+  await context.SaveChangesAsync(ct);await tx.CommitAsync(ct);
+  return CreatedAtAction(nameof(GetOrder),new{id=order.Id},new ApiResponse<PurchaseOrder>{Success=true,Data=order});
+ }
+ [HttpGet("{id:guid}")]
+ public async Task<ActionResult<ApiResponse<PurchaseOrder>>> GetOrder(Guid id,CancellationToken ct) {
+  if(!context.OrganizationId.HasValue)return Forbid();
+  var order=await context.PurchaseOrders.SingleOrDefaultAsync(o=>o.Id==id,ct);
+  return order==null?NotFound(new ApiResponse<PurchaseOrder>{Success=false,Error=new ApiError{Code="ORDER_NOT_FOUND",Message="Order not found"}}):Ok(new ApiResponse<PurchaseOrder>{Success=true,Data=order});
+ }
+ [HttpGet("suppliers")]
+ public async Task<IActionResult> Suppliers(CancellationToken ct)=>!context.OrganizationId.HasValue?Forbid():Ok(await context.Suppliers.OrderBy(s=>s.Name).Take(100).Select(s=>new{s.Id,s.Name,s.Status}).ToListAsync(ct));
+ [HttpGet("products")]
+ public async Task<IActionResult> Products(CancellationToken ct)=>!context.OrganizationId.HasValue?Forbid():Ok(await context.Products.OrderBy(s=>s.Name).Take(100).Select(s=>new{s.Id,s.Name,s.Sku,s.UnitPrice}).ToListAsync(ct));
 }

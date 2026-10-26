@@ -23,6 +23,17 @@ namespace IMSOP.SupplyChainService.Data.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("IMSOP.SupplyChainService.Entities.OrderOutbox", b => {
+                b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid").HasColumnName("id");
+                b.Property<Guid>("OrderId").HasColumnType("uuid").HasColumnName("order_id");
+                b.Property<string>("Body").IsRequired().HasColumnType("text").HasColumnName("body");
+                b.Property<string>("State").IsRequired().HasColumnType("text").HasColumnName("state");
+                b.Property<int>("Attempts").HasColumnType("integer").HasColumnName("attempts");
+                b.Property<DateTime>("NextAttemptAt").HasColumnType("timestamp with time zone").HasColumnName("next_attempt_at");
+                b.Property<DateTime?>("LeaseUntil").HasColumnType("timestamp with time zone").HasColumnName("lease_until");
+                b.HasKey("Id");b.ToTable("order_outbox", "supply_chain");
+            });
+
             modelBuilder.Entity("IMSOP.SupplyChainService.Entities.Inventory", b =>
                 {
                     b.Property<Guid>("Id")
@@ -158,6 +169,9 @@ namespace IMSOP.SupplyChainService.Data.Migrations
 
             modelBuilder.Entity("IMSOP.SupplyChainService.Entities.PurchaseOrder", b =>
                 {
+                    b.Property<string>("IdempotencyKey").HasColumnType("text").HasColumnName("idempotency_key");
+                    b.Property<string>("RequestHash").HasColumnType("text").HasColumnName("request_hash");
+                    b.Property<string>("DispatchState").IsRequired().HasColumnType("text").HasColumnName("dispatch_state");
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
@@ -191,6 +205,7 @@ namespace IMSOP.SupplyChainService.Data.Migrations
                         .HasColumnType("numeric")
                         .HasColumnName("total_amount");
 
+                    b.HasIndex("OrganizationId", "IdempotencyKey").IsUnique();
                     b.HasKey("Id");
 
                     b.ToTable("purchase_orders", "supply_chain");
