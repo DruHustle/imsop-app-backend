@@ -22,7 +22,14 @@ import {
   integrationStatus,
   operators,
 } from "../controllers/reviews";
+import {notificationPreferences,updateNotificationPreferences} from '../controllers/notificationPreferences';
+import {forecastStatus,importObservations,runForecast,observationInput,forecastInput} from '../controllers/forecasts';
 const router = Router();
+router.get('/forecasts',authenticate,requireWorkspace,authorize(['admin','engineer','analyst']),forecastStatus);
+router.post('/forecasts/observations',authenticate,requireWorkspace,authorize(['admin','engineer']),validateBody(observationInput),importObservations);
+router.post('/forecasts',authenticate,requireWorkspace,authorize(['admin','engineer','analyst']),validateBody(forecastInput),runForecast);
+router.get('/notifications/preferences',authenticate,requireWorkspace,notificationPreferences);
+router.put('/notifications/preferences',authenticate,requireWorkspace,validateBody(z.object({emailEnabled:z.boolean()}).strict()),updateNotificationPreferences);
 router.get(
   "/shipments/summary",
   authenticate,

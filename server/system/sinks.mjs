@@ -3,7 +3,7 @@ import net from "node:net";
 import http from "node:http";
 const messages = [],
   deliveries = new Map();
-let transportFailure = false;
+let transportFailure = false,forecastInvalid=false;
 net
   .createServer((socket) => {
     let buffer = "",
@@ -39,6 +39,13 @@ net
 http
   .createServer(async (req, res) => {
     res.setHeader("Content-Type", "application/json");
+    if(req.url==='/forecast/mode'){forecastInvalid=req.method==='POST';res.end('{}');return;}
+    if(req.url==='/forecast'&&req.method==='POST'){
+      let text='';for await(const chunk of req)text+=chunk;
+      const input=JSON.parse(text),products=new Map(input.series.map(s=>[s.sku,s.unit])),today=new Date().toISOString().slice(0,10),predictions=[];
+      for(const [sku,unit]of products)for(let n=1;n<=input.horizonDays;n++)predictions.push({sku,date:new Date(Date.parse(today)+n*86400000).toISOString().slice(0,10),quantity:1,unit});
+      res.end(JSON.stringify({contractVersion:1,requestId:input.requestId,provider:'isolated-forecast',modelVersion:'isolated-contract-double-v1',generatedAt:new Date().toISOString(),sourceSnapshotAt:forecastInvalid?'2000-01-01T00:00:00.000Z':input.datasetSnapshotAt,predictions,limitations:['Isolated transport double, not an actual prediction model.']}));return;
+    }
     if (req.url === "/messages") {
       res.end(JSON.stringify(messages));
       return;

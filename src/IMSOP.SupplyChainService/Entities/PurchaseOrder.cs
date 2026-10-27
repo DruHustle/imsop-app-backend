@@ -10,6 +10,7 @@ namespace IMSOP.SupplyChainService.Entities
         [Column("idempotency_key")] public string? IdempotencyKey {get;set;}
         [Column("request_hash")] public string? RequestHash {get;set;}
         [Column("dispatch_state")] public string DispatchState {get;set;}="disabled";
+        [Column("currency"),MaxLength(3)] public string? Currency {get;set;}
         [Key]
         [Column("id")]
         public Guid Id { get; set; } = Guid.NewGuid();

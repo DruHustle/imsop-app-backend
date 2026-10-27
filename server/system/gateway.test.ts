@@ -334,6 +334,9 @@ test("signed intake through gateway seeds a durable review workflow for real bro
     "INSERT INTO logistics_connectors(provider,workspace_id) VALUES('isolated-carrier',$1) ON CONFLICT(provider) DO UPDATE SET workspace_id=EXCLUDED.workspace_id",
     [user.workspaceId],
   );
+  const productId=randomUUID(),warehouseId=randomUUID();
+  await db.query("INSERT INTO supply_chain.products(id,organization_id,sku,name,unit_price) VALUES($1,$2,'VERIFY-PART','Verification part',12.3456)",[productId,user.organizationId]);
+  await db.query("INSERT INTO supply_chain.warehouses(id,organization_id,name) VALUES($1,$2,'Verification warehouse')",[warehouseId,user.organizationId]);
   const event = {
     eventId: randomUUID(),
     trackingNumber: "SYSTEM-SHP-10",
@@ -371,6 +374,7 @@ test("signed intake through gateway seeds a durable review workflow for real bro
       userId: user.id,
       workspaceId: user.workspaceId,
       shipmentId: accepted.shipmentId,
+      supplierId:user.supplierId,productId,warehouseId,
     }),
   );
 });

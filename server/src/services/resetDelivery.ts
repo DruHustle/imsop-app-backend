@@ -72,11 +72,18 @@ export async function dispatchResetDeliveries() {
   await connection.query(
     `UPDATE reset_deliveries SET state='expired',encrypted_payload=NULL WHERE expires_at<=now() AND encrypted_payload IS NOT NULL`,
   );
-  const claimed =
-    await connection.query(`WITH due AS (SELECT id FROM reset_deliveries WHERE state IN ('pending','sending') AND expires_at>now() AND next_attempt_at<=now()
- AND (lease_until IS NULL OR lease_until<now()) AND attempts<5 ORDER BY created_at LIMIT 5 FOR UPDATE SKIP LOCKED)
+  // Recover a crash on the final attempt instead of leaving a sending row stuck.
+  await connection.query(`UPDATE reset_deliveries SET state='failed',encrypted_payload=NULL,lease_until=NULL
+    WHERE state='sending' AND attempts>=5 AND lease_until<now()`);
+  // Claim immediately before sending. A slow earlier mail must not consume the
+  // lease of another row sitting in a claimed batch.
+  for (let slot = 0; slot < 5; slot++) {
+    const claimed =
+      await connection.query(`WITH due AS (SELECT id FROM reset_deliveries WHERE state IN ('pending','sending') AND expires_at>now() AND next_attempt_at<=now()
+ AND (lease_until IS NULL OR lease_until<now()) AND attempts<5 ORDER BY created_at LIMIT 1 FOR UPDATE SKIP LOCKED)
  UPDATE reset_deliveries d SET state='sending',attempts=attempts+1,lease_until=now()+interval '60 seconds' FROM due WHERE d.id=due.id RETURNING d.*`);
-  for (const row of claimed.rows) {
+    const row = claimed.rows[0];
+    if (!row) break;
     try {
       const { email, url } = JSON.parse(decrypt(row.encrypted_payload));
       await sendPasswordResetEmail(email, url, row.id);

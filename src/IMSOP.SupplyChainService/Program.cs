@@ -104,7 +104,7 @@ app.MapGet("/health", () => Results.Ok(new { status = "ok", release = ReleaseIde
 app.MapGet("/ready", async (ApplicationDbContext db, CancellationToken cancellationToken) =>
 {
     var applied=await db.Database.GetAppliedMigrationsAsync(cancellationToken);
-    var canConnect=applied.Contains("202610270001_DurableOrders");
+    var canConnect=applied.Contains("202610270002_PurchaseReceiving");
     return canConnect
         ? Results.Ok(new { status = "ready", service = "IMSOP.SupplyChainService" })
         : Results.Json(new { status = "not-ready", service = "IMSOP.SupplyChainService" }, statusCode: StatusCodes.Status503ServiceUnavailable);

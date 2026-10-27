@@ -6,12 +6,14 @@ import { connection } from "./config/db";
 assertProductionConfiguration();
 
 import { dispatchResetDeliveries } from "./services/resetDelivery";
+import {dispatchOperationalNotifications} from "./services/notificationDelivery";
 let dispatching = false;
 const deliveryTimer = setInterval(async () => {
   if (dispatching) return;
   dispatching = true;
   try {
     await dispatchResetDeliveries();
+    await dispatchOperationalNotifications();
   } catch {
     console.warn(JSON.stringify({ event: "reset_worker_failed" }));
   } finally {

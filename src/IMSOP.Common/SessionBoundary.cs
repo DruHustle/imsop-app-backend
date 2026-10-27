@@ -27,6 +27,7 @@ public static class SessionBoundary
    var session=await response.Content.ReadFromJsonAsync<JsonElement>();
    var identity=(ClaimsIdentity)context.Principal!.Identity!;
    foreach(var claim in identity.FindAll(ClaimTypes.Role).ToArray()) identity.RemoveClaim(claim);
+   foreach(var type in new[]{"workspace_id","organization_id"}) foreach(var claim in identity.FindAll(type).ToArray()) identity.RemoveClaim(claim);
    identity.AddClaim(new Claim(ClaimTypes.Role,session.GetProperty("role").GetString()!));
    if(session.GetProperty("workspaceId").ValueKind==JsonValueKind.String) identity.AddClaim(new Claim("workspace_id",session.GetProperty("workspaceId").GetString()!));
    if(session.GetProperty("organizationId").ValueKind==JsonValueKind.String) identity.AddClaim(new Claim("organization_id",session.GetProperty("organizationId").GetString()!));

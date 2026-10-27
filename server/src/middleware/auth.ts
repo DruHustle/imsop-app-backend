@@ -25,7 +25,9 @@ export const authenticate = async (
     .find((v) => v.startsWith("imsop_access="))
     ?.slice(13);
   const token =
-    req.headers.authorization?.match(/^Bearer (\S+)$/i)?.[1] || cookie;
+    req.headers.authorization !== undefined
+      ? req.headers.authorization.match(/^Bearer (\S+)$/i)?.[1]
+      : cookie;
   if (!token)
     return res
       .status(401)
@@ -47,12 +49,10 @@ export const authenticate = async (
       throw new Error();
     claims = decoded;
   } catch {
-    return res
-      .status(401)
-      .json({
-        error: "Your session expired. Sign in again.",
-        code: "SESSION_EXPIRED",
-      });
+    return res.status(401).json({
+      error: "Your session expired. Sign in again.",
+      code: "SESSION_EXPIRED",
+    });
   }
   try {
     const result = await connection.query(
@@ -65,12 +65,10 @@ export const authenticate = async (
     );
     const row = result.rows[0];
     if (!row)
-      return res
-        .status(401)
-        .json({
-          error: "Your session expired. Sign in again.",
-          code: "SESSION_EXPIRED",
-        });
+      return res.status(401).json({
+        error: "Your session expired. Sign in again.",
+        code: "SESSION_EXPIRED",
+      });
     req.user = {
       id: row.id,
       email: row.email,
@@ -91,12 +89,10 @@ export const requireWorkspace = (
 ) =>
   req.user?.workspaceId
     ? next()
-    : res
-        .status(403)
-        .json({
-          error: "Ask your workspace administrator to provision access.",
-          code: "WORKSPACE_REQUIRED",
-        });
+    : res.status(403).json({
+        error: "Ask your workspace administrator to provision access.",
+        code: "WORKSPACE_REQUIRED",
+      });
 export const authorize =
   (roles: string[]) => (req: AuthRequest, res: Response, next: NextFunction) =>
     !req.user || !roles.includes(req.user.role)

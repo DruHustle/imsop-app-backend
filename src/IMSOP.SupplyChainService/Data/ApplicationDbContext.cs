@@ -27,6 +27,10 @@ namespace IMSOP.SupplyChainService.Data
             modelBuilder.Entity<OrderOutbox>().HasOne<PurchaseOrder>().WithMany().HasForeignKey(x=>x.OrderId).OnDelete(DeleteBehavior.Restrict);
             modelBuilder.Entity<PurchaseOrder>().HasQueryFilter(x=>OrganizationId.HasValue && x.OrganizationId==OrganizationId.Value);
             modelBuilder.Entity<Supplier>().HasQueryFilter(x=>OrganizationId.HasValue && x.OrganizationId==OrganizationId.Value);
+            modelBuilder.Entity<Warehouse>().HasQueryFilter(x=>OrganizationId.HasValue && x.OrganizationId==OrganizationId.Value);
+            modelBuilder.Entity<Inventory>().HasQueryFilter(x=>OrganizationId.HasValue && x.OrganizationId==OrganizationId.Value);
+            modelBuilder.Entity<PurchaseOrderItem>().HasOne<PurchaseOrder>().WithMany().HasForeignKey(x=>x.PurchaseOrderId).HasConstraintName("purchase_item_order_fk").OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<PurchaseOrderItem>().HasOne<Product>().WithMany().HasForeignKey(x=>x.ProductId).HasConstraintName("purchase_item_product_fk").OnDelete(DeleteBehavior.Restrict);
             modelBuilder.Entity<Product>().HasQueryFilter(x=>OrganizationId.HasValue && x.OrganizationId==OrganizationId.Value);
             modelBuilder.Entity<PurchaseOrder>().HasIndex(x=>new{x.OrganizationId,x.IdempotencyKey}).IsUnique();
             // Organization identity comes exclusively from the verified server session.

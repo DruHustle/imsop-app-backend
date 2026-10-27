@@ -537,7 +537,7 @@ test("migration upgrade preserves legacy rows; concurrent runners serialize and 
     assert.equal(
       (await pool.query("SELECT count(*)::int AS count FROM schema_migrations"))
         .rows[0].count,
-      4,
+      5,
     );
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), "imsop-migration-"));
     try {
@@ -637,4 +637,11 @@ test('delivery evidence corrections and currency reports preserve original promi
  await connection.query("INSERT INTO orders(workspace_id,order_number,total_amount,currency) VALUES($1,'CURRENCY-ZERO',0,NULL),($1,'CURRENCY-EUR',1234.50,'EUR'),($1,'CURRENCY-USD',12.3456,'USD')",[workspace]);
  const orders=await(await request('/api/operations/orders?limit=10',undefined,cookie)).json();assert.equal(orders.items.find((o:any)=>o.orderNumber==='CURRENCY-USD').totalAmount,'12.35');
  const currencyReport=await(await request('/api/operations/orders/export/report',undefined,cookie)).text();assert.match(currencyReport,/0.00 currency unknown/);assert.match(currencyReport,/1234.50 EUR/);assert.match(currencyReport,/12.35 USD/);assert.doesNotMatch(currencyReport,/<td>\$/);
+});
+
+
+test('an invalid explicit Authorization header never falls back to an authenticated cookie',async()=>{
+ const {cookie}=await account();
+ const response=await fetch(base+'/api/auth/me',{headers:{Cookie:cookie,Authorization:'invalid-scheme','X-Forwarded-For':'192.0.2.219'}});
+ assert.equal(response.status,401);
 });

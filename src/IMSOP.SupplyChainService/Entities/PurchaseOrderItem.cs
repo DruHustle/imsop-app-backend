@@ -7,6 +7,7 @@ namespace IMSOP.SupplyChainService.Entities
     [Table("purchase_order_items")]
     public class PurchaseOrderItem
     {
+        [Column("received_quantity")] public int ReceivedQuantity {get;set;}
         [Key]
         [Column("id")]
         public Guid Id { get; set; } = Guid.NewGuid();

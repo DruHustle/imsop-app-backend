@@ -32,6 +32,11 @@ jobs:
           DATABASE_URL: postgresql://imsop_test:isolated-test-only@127.0.0.1:55467/imsop_test
           NODE_ENV: test
         run: pnpm -C server exec node --test --import tsx system/gateway.test.ts
+      - name: Purchase receiving, opt-in mail and forecast evidence
+        env:
+          DATABASE_URL: postgresql://imsop_test:isolated-test-only@127.0.0.1:55467/imsop_test
+          NODE_ENV: test
+        run: pnpm -C server exec node --test --import tsx system/completion.test.ts
       - name: Prove regression sensitivity
         env:
           DATABASE_URL: postgresql://imsop_test:isolated-test-only@127.0.0.1:55467/imsop_test

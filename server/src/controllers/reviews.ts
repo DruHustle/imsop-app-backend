@@ -1,3 +1,4 @@
+import {externalMailAvailable} from "../services/notificationDelivery";
 import { Response } from "express";
 import { connection } from "../config/db";
 import { AuthRequest } from "../middleware/auth";
@@ -145,7 +146,7 @@ export async function integrationStatus(req: AuthRequest, res: Response) {
       sync: "event intake only",
     })),
     resetDelivery: delivery,
-    externalNotifications: false,
+    externalNotifications: externalMailAvailable(),
     readAt: new Date().toISOString(),
   });
 }
