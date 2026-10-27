@@ -606,3 +606,28 @@ test("expired resets, malformed credentials and concurrent password changes cann
   assert.equal(response.status, 401);
   assert.equal((await response.json()).code, "SESSION_EXPIRED");
 });
+
+test('delivery evidence corrections and currency reports preserve original promise, UTC and exact source amounts',async()=>{
+ const workspace=randomUUID(),provider='metric-'+randomUUID(),secret='isolated-signing-secret-at-least-32-characters';
+ await connection.query("INSERT INTO workspaces(id,name) VALUES($1,'Metric and currency verification')",[workspace]);
+ await connection.query('INSERT INTO logistics_connectors(provider,workspace_id) VALUES($1,$2)',[provider,workspace]);
+ process.env.LOGISTICS_WEBHOOK_SECRETS=JSON.stringify({...JSON.parse(process.env.LOGISTICS_WEBHOOK_SECRETS||'{}'),[provider]:secret});
+ const {cookie}=await account('analyst',workspace),{createHmac}=await import('node:crypto');
+ const ingest=async(event:any)=>{const body=JSON.stringify(event),timestamp=String(Math.floor(Date.now()/1000));return fetch(base+`/api/integrations/logistics/${provider}/events`,{method:'POST',headers:{'Content-Type':'application/json','X-Forwarded-For':`192.0.2.${++requestSequence}`,'x-imsop-timestamp':timestamp,'x-imsop-signature':'sha256='+createHmac('sha256',secret).update(timestamp+'.'+body).digest('hex')},body});};
+ const tracking='METRIC-'+randomUUID();
+ for(const event of [
+  {eventId:'a',eventType:'shipment.created',trackingNumber:tracking,status:'in_transit',occurredAt:'2026-10-01T00:00:00Z',estimatedArrival:'2026-10-03T00:10:00Z'},
+  {eventId:'b',eventType:'shipment.updated',trackingNumber:tracking,status:'in_transit',occurredAt:'2026-10-02T00:00:00Z',estimatedArrival:'2026-10-05T00:10:00Z'},
+  {eventId:'c',eventType:'shipment.delivered',trackingNumber:tracking,status:'delivered',occurredAt:'2026-10-04T00:00:00Z',actualArrival:'2026-10-04T00:00:00Z'},
+ ])assert.equal((await ingest(event)).status,202);
+ let summary=await(await request('/api/operations/shipments/summary',undefined,cookie)).json();assert.equal(summary.eligible,1);assert.equal(summary.onTime,0);
+ const report=await(await request('/api/operations/shipments/export/report',undefined,cookie)).text();assert.match(report,/2026-10-03T00:10:00.000Z/);assert.match(report,/2026-10-04T00:00:00.000Z/);
+ assert.equal((await ingest({eventId:'d',eventType:'shipment.corrected',trackingNumber:tracking,status:'delivered',occurredAt:'2026-10-06T00:00:00Z',actualArrival:null})).status,202);
+ summary=await(await request('/api/operations/shipments/summary',undefined,cookie)).json();assert.equal(summary.eligible,0);
+ assert.equal((await ingest({eventId:'e',eventType:'shipment.corrected',trackingNumber:tracking,status:'delivered',occurredAt:'2026-10-07T00:00:00Z',actualArrival:'2026-10-03T00:00:00Z'})).status,202);
+ summary=await(await request('/api/operations/shipments/summary',undefined,cookie)).json();assert.equal(summary.onTime,1);
+ assert.equal((await ingest({eventId:'bad',eventType:'shipment.delivered',trackingNumber:tracking,status:'delivered',occurredAt:'2026-10-08T00:00:00Z'})).status,400);
+ await connection.query("INSERT INTO orders(workspace_id,order_number,total_amount,currency) VALUES($1,'CURRENCY-ZERO',0,NULL),($1,'CURRENCY-EUR',1234.50,'EUR'),($1,'CURRENCY-USD',12.3456,'USD')",[workspace]);
+ const orders=await(await request('/api/operations/orders?limit=10',undefined,cookie)).json();assert.equal(orders.items.find((o:any)=>o.orderNumber==='CURRENCY-USD').totalAmount,'12.35');
+ const currencyReport=await(await request('/api/operations/orders/export/report',undefined,cookie)).text();assert.match(currencyReport,/0.00 currency unknown/);assert.match(currencyReport,/1234.50 EUR/);assert.match(currencyReport,/12.35 USD/);assert.doesNotMatch(currencyReport,/<td>\$/);
+});

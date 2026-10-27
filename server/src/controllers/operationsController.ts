@@ -14,7 +14,7 @@ export const escapeHtml = (value: unknown) =>
     .replaceAll("'", "&#39;");
 
 const formatDate = (value: Date | string | null | undefined) =>
-  value ? new Date(value).toLocaleDateString() : "N/A";
+  value ? new Date(value).toISOString() : "N/A";
 
 export const getShipments = async (req: AuthRequest, res: Response) => {
   try {
