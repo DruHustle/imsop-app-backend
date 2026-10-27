@@ -12,7 +12,7 @@ export async function reviewHistory(req:AuthRequest,res:Response) {
  const id=numericId(req.params.id);if(!id)return res.status(400).json({error:'Invalid case ID'});
  const found=await connection.query('SELECT id FROM review_cases WHERE id=$1 AND workspace_id=$2',[id,req.user!.workspaceId]);
  if(!found.rowCount)return res.status(404).json({error:'Review case not found'});
- const result=await connection.query('SELECT id,actor_id AS "actorId",action,note,occurred_at AS "occurredAt" FROM review_actions WHERE case_id=$1 AND workspace_id=$2 ORDER BY id DESC LIMIT 100',[id,req.user!.workspaceId]);
+ const result=await connection.query('SELECT a.id,a.actor_id AS "actorId",coalesce(u.name,'System') AS "actorName",a.action,a.note,a.occurred_at AS "occurredAt" FROM review_actions a LEFT JOIN users u ON u.id=a.actor_id WHERE a.case_id=$1 AND a.workspace_id=$2 ORDER BY a.id DESC LIMIT 100',[id,req.user!.workspaceId]);
  res.json({items:result.rows});
 }
 export async function actOnReview(req:AuthRequest,res:Response) {
@@ -35,7 +35,7 @@ export async function actOnReview(req:AuthRequest,res:Response) {
  }catch{await tx.query('ROLLBACK');res.status(503).json({error:'Review action could not be saved. Refresh and retry.'});}finally{tx.release();}
 }
 export async function notifications(req:AuthRequest,res:Response) {
- const data=await connection.query(`SELECT a.id,a.case_id AS "caseId",a.action,a.note,a.occurred_at AS "occurredAt",(r.user_id IS NOT NULL) AS read,s.tracking_number AS "trackingNumber"
+ const data=await connection.query(`SELECT a.id,a.case_id AS "caseId",c.shipment_id AS "shipmentId",a.action,a.note,a.occurred_at AS "occurredAt",(r.user_id IS NOT NULL) AS read,s.tracking_number AS "trackingNumber"
  FROM review_actions a JOIN review_cases c ON c.id=a.case_id JOIN shipments s ON s.id=c.shipment_id
  LEFT JOIN notification_reads r ON r.action_id=a.id AND r.user_id=$1 WHERE a.workspace_id=$2 ORDER BY a.id DESC LIMIT 100`,[req.user!.id,req.user!.workspaceId]);
  res.json({items:data.rows,capability:'in-app',externalDelivery:false});

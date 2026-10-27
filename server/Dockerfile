@@ -16,6 +16,10 @@ RUN pnpm build
 RUN pnpm prune --prod
 
 FROM node:22-alpine AS runtime
+ARG APP_REVISION=unknown
+LABEL org.opencontainers.image.revision=$APP_REVISION org.opencontainers.image.title="IMSOP backend"
+ENV APP_REVISION=$APP_REVISION
+
 
 WORKDIR /app
 
