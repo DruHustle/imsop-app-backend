@@ -18,9 +18,6 @@ COPY server/migrations ./migrations
 RUN pnpm build && pnpm prune --prod
 
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
-ARG APP_REVISION=unknown
-LABEL org.opencontainers.image.revision=$APP_REVISION org.opencontainers.image.title="IMSOP backend"
-ENV APP_REVISION=$APP_REVISION
 
 USER root
 RUN apt-get update \
@@ -42,6 +39,10 @@ COPY --from=node-build --chown=app:app /src/server/migrations ./node-api/migrati
 COPY --chown=app:app deploy/oracle/supervisord.conf /app/supervisord.conf
 COPY --chown=app:app deploy/oracle/entrypoint.sh /app/entrypoint
 RUN chmod 0555 /app/entrypoint
+
+ARG APP_REVISION=unknown
+LABEL org.opencontainers.image.revision=$APP_REVISION org.opencontainers.image.title="IMSOP backend"
+ENV APP_REVISION=$APP_REVISION
 
 ENV NODE_ENV=production \
     ASPNETCORE_ENVIRONMENT=Production \
