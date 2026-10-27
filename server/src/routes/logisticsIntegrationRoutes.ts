@@ -20,6 +20,8 @@ const eventSchema = z
     status: z.enum([
       "pending",
       "in_transit",
+    "picked_up",
+    "out_for_delivery",
       "delivered",
       "delayed",
       "exception",
