@@ -45,6 +45,7 @@ public static class SessionBoundary
    context.TraceIdentifier=System.Text.RegularExpressions.Regex.IsMatch(candidate,"^[a-zA-Z0-9-]{8,64}$") ? candidate : Guid.NewGuid().ToString();
    context.Request.Headers["X-Request-ID"]=context.TraceIdentifier;
    context.Response.Headers["X-Request-ID"]=context.TraceIdentifier;
+   context.Response.OnStarting(()=>{context.Response.Headers["X-Request-ID"]=context.TraceIdentifier;return Task.CompletedTask;});
    var watch=System.Diagnostics.Stopwatch.StartNew();
    if(context.Request.Cookies.ContainsKey("imsop_access") && !context.Request.Headers.ContainsKey("Authorization") && !new[]{"GET","HEAD","OPTIONS"}.Contains(context.Request.Method)
     && !allowedOrigins.Contains(context.Request.Headers.Origin.ToString())) {

@@ -1,10 +1,16 @@
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS dotnet-build
 WORKDIR /src
+COPY src/IMSOP.sln ./src/IMSOP.sln
+COPY src/IMSOP.Common/IMSOP.Common.csproj ./src/IMSOP.Common/
+COPY src/IMSOP.Gateway/IMSOP.Gateway.csproj ./src/IMSOP.Gateway/
+COPY src/IMSOP.OperationsService/IMSOP.OperationsService.csproj ./src/IMSOP.OperationsService/
+COPY src/IMSOP.SupplyChainService/IMSOP.SupplyChainService.csproj ./src/IMSOP.SupplyChainService/
+COPY src/IMSOP.SupplyChainService.Tests/IMSOP.SupplyChainService.Tests.csproj ./src/IMSOP.SupplyChainService.Tests/
+RUN dotnet restore src/IMSOP.sln
 COPY src ./src
-RUN dotnet restore src/IMSOP.sln \
-    && dotnet publish src/IMSOP.Gateway/IMSOP.Gateway.csproj -c Release -o /publish/gateway /p:UseAppHost=false \
-    && dotnet publish src/IMSOP.OperationsService/IMSOP.OperationsService.csproj -c Release -o /publish/operations /p:UseAppHost=false \
-    && dotnet publish src/IMSOP.SupplyChainService/IMSOP.SupplyChainService.csproj -c Release -o /publish/supply-chain /p:UseAppHost=false
+RUN dotnet publish src/IMSOP.Gateway/IMSOP.Gateway.csproj --no-restore -c Release -o /publish/gateway /p:UseAppHost=false \
+    && dotnet publish src/IMSOP.OperationsService/IMSOP.OperationsService.csproj --no-restore -c Release -o /publish/operations /p:UseAppHost=false \
+    && dotnet publish src/IMSOP.SupplyChainService/IMSOP.SupplyChainService.csproj --no-restore -c Release -o /publish/supply-chain /p:UseAppHost=false
 
 FROM node:22-bookworm-slim AS node-build
 WORKDIR /src/server
