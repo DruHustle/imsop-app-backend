@@ -12,11 +12,10 @@ ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
 RUN corepack enable
 COPY server/package.json server/pnpm-lock.yaml server/.npmrc server/tsconfig.json server/drizzle.config.ts ./
+RUN pnpm install --frozen-lockfile
 COPY server/src ./src
 COPY server/migrations ./migrations
-RUN pnpm install --frozen-lockfile \
-    && pnpm build \
-    && pnpm prune --prod
+RUN pnpm build && pnpm prune --prod
 
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
 ARG APP_REVISION=unknown

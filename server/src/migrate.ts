@@ -16,8 +16,17 @@ export async function migrate(
 ) {
   if (!connectionString)
     throw new Error("A migration database URL is required");
-  const pool = new Pool({ connectionString });
-  const connection = await pool.connect();
+  const pool = new Pool({ connectionString, connectionTimeoutMillis:5000 });
+  const connection = await (async()=>{
+    for(let attempt=0;;attempt++) {
+      try{return await pool.connect();}
+      catch(error) {
+        const code=(error as {code?:string}).code;
+        if(attempt>=4 || !['ECONNREFUSED','57P03'].includes(code||'')){await pool.end();throw error;}
+        await new Promise(resolve=>setTimeout(resolve,500*(attempt+1)));
+      }
+    }
+  })();
   try {
     await connection.query("SET lock_timeout = '30s'");
     await connection.query("SELECT pg_advisory_lock(491697, 1)");
@@ -71,9 +80,7 @@ export async function migrate(
   }
 }
 if (require.main === module)
-  migrate().catch(() => {
-    console.error(
-      "Database migration failed; inspect migration ledger/configuration",
-    );
+  migrate().catch((error) => {
+    console.error(JSON.stringify({event:"migration_failed",code:error.code||error.name,action:"Check database readiness, migration checksum and migration privileges"}));
     process.exitCode = 1;
   });

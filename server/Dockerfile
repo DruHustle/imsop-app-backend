@@ -8,10 +8,9 @@ ENV PATH="$PNPM_HOME:$PATH"
 RUN corepack enable
 
 COPY package.json pnpm-lock.yaml .npmrc tsconfig.json drizzle.config.ts ./
+RUN pnpm install --frozen-lockfile
 COPY src ./src
 COPY migrations ./migrations
-
-RUN pnpm install --frozen-lockfile
 RUN pnpm build
 RUN pnpm prune --prod
 
