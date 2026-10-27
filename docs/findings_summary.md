@@ -1,3 +1,5 @@
+> ARCHIVED — see [current deployment](DEPLOYMENT.md) and [capability inventory](CURRENT_PLATFORM.md).
+
 # IMSOP Backend Analysis Summary
 
 ## Microservices Architecture

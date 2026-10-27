@@ -101,3 +101,7 @@ erDiagram
 
 Production schema evolution uses EF Core migrations in `src/IMSOP.SupplyChainService/Data/Migrations`. Set `Database__AutoMigrate=true` on the supervised Render image so its supply-chain schema is upgraded at startup; it is disabled by default for standalone service deployments.
 
+
+## Current schema boundary
+
+The diagrams above describe the historical baseline. Current forward additions and ownership rules are authoritative in [current inventory](CURRENT_PLATFORM.md), [provisioning](PROVISIONING.md) and [migration/recovery](RECOVERY.md). Public sign-up has no operational workspace. New sessions, workspaces, membership, connector bindings, delivery queue, review/audit/read-state and projection provenance are defined by immutable forward SQL migrations; separate purchase-order/outbox fields are owned by the .NET EF schema. Legacy UTC TIMESTAMP values are retained without conversion.

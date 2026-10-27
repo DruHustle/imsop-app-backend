@@ -1,3 +1,5 @@
+> ARCHIVED — see [current deployment](DEPLOYMENT.md) and [capability inventory](CURRENT_PLATFORM.md).
+
 # IMSOP Backend Deployment Guide
 
 This document provides step-by-step instructions for setting up and deploying the IMSOP backend microservices. Container images are stored in GitHub Container Registry (GHCR); Azure remains an optional runtime target.

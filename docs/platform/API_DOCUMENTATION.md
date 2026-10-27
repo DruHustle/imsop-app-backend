@@ -1,3 +1,5 @@
+> ARCHIVED DESIGN — not current implementation or deployment evidence. See [current inventory](../CURRENT_PLATFORM.md).
+
 # IMSOP API Flows and Sequences
 
 The IMSOP (Intelligent Multi-Cloud Supply Chain & Operations Platform) API is designed for high performance, security, and reliability, adhering to a clear versioning and error-handling strategy. The architecture is primarily Azure-centric, with multi-cloud capabilities facilitated by Azure Arc [1].

@@ -1,0 +1,539 @@
+Act as the lead full-stack engineer, product designer and reliability engineer for IMSOP (Intelligent Multi-Cloud Supply Chain & Operations Platform). Implement and verify the remediation below across the existing frontend and backend. Complete the work through reviewable commits/PRs and an evidence-based handoff. Do not stop at another audit, a plan, mockups, or a list of suggested fixes.
+
+This prompt is self-contained: its findings, file locations, required behavior and acceptance criteria are included. A separate review attachment is useful context, not a prerequisite. Revalidate the findings against current source and preserve any newer fixes. Do not reset either repository to the review snapshots.
+
+PROJECT AND BASELINE
+
+Frontend: DruHustle/imsop-app-frontend.
+
+Backend: DruHustle/imsop-app-backend, including Node API, .NET gateway, OperationsService and SupplyChainService.
+
+Live frontend: https://imsop-app.vercel.app/.
+
+Reviewed frontend main: 367f4abfc10d681d60c38244865a831d78be7588.
+
+Reviewed backend main: 10da3ed91fd820660c1210dac4f2970b86e68788.
+
+Review date: 26 October 2026.
+
+Review source paths below are relative to the relevant repository.
+
+Preserve both independent repositories, histories, deployment boundaries, working changes and existing remotes. Read applicable AGENTS.md/instructions, current branches, open PRs and deployment docs.
+
+The current interface already has grouped navigation, responsive shipment cards, shared Demo/Live state, real theme tokens, safer HTML/CSV helpers and truthful unavailable capabilities. Preserve those improvements.
+
+Current main CI outcomes were successful. That does not qualify the real database, mail delivery, running backend revision or the whole customer workflow.
+
+Oracle's documented target is the existing ARM64 Software Engineering Backend VM. Preserve its isolation from Onesa and sibling applications. Vercel root-base production requests already use the first-party API proxy; do not break this.
+
+Use feature branches and focused commits/PRs. This task authorizes implementation and isolated verification; production merging/deployment, customer-record mutation, provider-account connection, paid provisioning and production email sends are outside this task unless separately authorized in the existing session.
+
+Do not invent release gates, verifier authorization IDs or an external issuer as prerequisites. Use actual repository rules and existing approvals. If a particular external check is inaccessible, finish all independent implementation and report that exact limitation.
+
+Do not add a mandatory paid model, broker, map provider or monitoring subscription. Reuse existing PostgreSQL and configured infrastructure. Keep optional integrations honestly unavailable until configured.
+
+Persist the findings and closure matrix in repository docs, using stable IDs IMS-01 through IMS-18. Include current commits and the exact commands/results. The accompanying review must be real content in the deliverable, not a reference to a nonexistent file.
+
+IMPLEMENTATION ORDER
+
+First secure access/recovery and add the real-stack tests. Then repair event/order consistency, scoped queries/reporting and Assistant identity. Complete a small durable operational cycle. Finish release verification, product polish and documentation. Do not treat a new Not configured message as resolution of a business capability unless the finding explicitly permits that outcome.
+
+IMS-01 — FIX THE COMPLETE PASSWORD-RECOVERY JOURNEY [P1]
+
+Evidence:
+
+Backend server/src/controllers/authController.ts builds resetUrl as baseUrl + "?token=...".
+
+With the documented PASSWORD_RESET_BASE_URL ending "/#/reset-password", the token is in the hash query.
+
+Frontend client/src/pages/ResetPassword.tsx reads only window.location.search.
+
+e2e/auth.smoke.spec.ts tests "/?token=...#/reset-password", a different shape.
+
+App.tsx renders reset routes only when unauthenticated.
+
+ResetPassword accepts 6 characters locally; API authRoutes requires 12–128. Register does not explain that policy.
+
+ForgotPassword always displays demo redirection copy after success.
+
+Implement one canonical reset-link builder and parser. Support both already-used URL forms without accepting ambiguous duplicate tokens. Keep real reset tokens out of logs, analytics and ordinary persistent storage. Route recovery deliberately for signed-out users and existing live/demo sessions; a real token must never be handled by MockAuthService or produce a fake success. Remove the token from the visible URL after safely capturing it without losing it on a failed submission.
+
+Use the real password policy in registration/reset/change UI, with accessible inline guidance. Correct success/invalid/expired/used-link and demo messaging. Handle configured base URLs through a URL-aware builder, including existing query parameters.
+
+Acceptance:
+
+Feed the exact link emitted by the backend mail path into browser tests.
+
+Test signed out, signed in and demo identity; both historical link formats; missing, malformed, expired and consumed tokens; 6–11 character passwords; retry and reload behavior.
+
+No real reset email or production credential changes during verification.
+
+IMS-02 — ENFORCE A REAL WORKSPACE/RESOURCE ACCESS BOUNDARY [P1]
+
+Evidence:
+
+Public register creates a role=user session.
+
+That role can read shipments and event history.
+
+operationalReads.ts selects all shipments, with no account/customer/organization scope; details use only numeric ID.
+
+Node shipments have no ownership/membership columns.
+
+.NET PurchaseOrder.OrganizationId exists, but OrdersController.GetOrder uses FindAsync(id) without membership checks; ApplicationDbContext has no effective tenant query filter.
+
+Establish the intended workspace boundary from current product/configuration evidence. Implement explicit provisioning/membership so public sign-up cannot automatically access pre-existing operational data. Preserve legitimate internal users with a documented migration/provisioning plan, never by guessing row ownership or copying organization IDs from a request.
+
+Enforce scope on lists, details, events, reports, telemetry, summaries, Assistant retrieval and .NET order reads/writes. Combine resource scope with existing role permissions. Use trusted server-side session/membership data; reject caller-supplied cross-workspace identifiers. Return appropriate 401/403/404 responses without disclosing forbidden records. Do not merge Node user/order IDs with .NET GUID entities.
+
+Acceptance:
+
+Use two isolated workspaces/users plus an unprovisioned public registration.
+
+Exercise Node directly and gateway/.NET paths, guessed IDs, events and reports.
+
+Existing admin/engineer/analyst/user capabilities remain correct inside the permitted scope; user retains permitted Assistant access.
+
+Produce a safe backfill/preflight report for existing data; do not execute an ambiguous production ownership migration.
+
+IMS-03 — MAKE LOGISTICS EVENTS PRODUCE A TRUSTWORTHY SNAPSHOT [P1]
+
+Evidence:
+
+server/src/controllers/logisticsIntegrationController.ts unconditionally updates shipment state for every new event.
+
+An older in_transit event received after a delivered event regresses the snapshot.
+
+Omitted coordinates/ETA become null.
+
+Initial missing origin/destination are not later repaired; a location label may become destination.
+
+Latest observedAt/provider are selected by event time, independently from the event last applied to snapshot fields.
+
+Shipment identity is trackingNumber alone, while event deduplication uses provider + eventId.
+
+Implement a transactional deterministic reducer/projection. Retain valid events, deduplicate correctly and apply only updates permitted by the event ordering/version contract. Decide tie behavior explicitly. Preserve omitted fields; distinguish absence from an intentional clear; validate route semantics and prevent observed location labels from silently becoming destinations.
+
+Bind snapshot provenance/version to the applied event. Establish whether external tracking identifiers need provider/workspace namespacing and implement an explicit compatible migration if required. Do not silently merge unrelated shipments or duplicate existing identities.
+
+Acceptance:
+
+Real PostgreSQL tests for duplicate, sparse, out-of-order, concurrent and equal-time events.
+
+Show that a newer delivered state survives older updates and that known ETA/location persist when absent.
+
+Cover route corrections, intentional clear semantics, provider identity collisions and transactional rollback.
+
+Snapshot status, map coordinates and event provenance must agree with the documented reducer.
+
+IMS-04 — COMPLETE DELIVERY EVIDENCE FOR ANALYTICS [P2]
+
+Evidence:
+
+The webhook schema accepts shipment.delivered but does not carry explicit actualArrival.
+
+Ingestion never writes actualArrival.
+
+Analytics correctly requires both estimated and actual arrival for an eligible delivery, so current live intake cannot populate that evidence.
+
+ETA updates have no retained promise/baseline.
+
+Define delivery evidence in the provider/canonical contract. Populate actualArrival from explicit supported evidence; use occurredAt only if the event contract establishes that it means actual delivery. Retain the estimate/promise basis required by the selected on-time metric and expose its definition.
+
+Acceptance:
+
+Ingest known on-time, late, missing-date, revised-ETA and corrected-delivery cases through the API.
+
+Compare PostgreSQL records, screen calculations and exports.
+
+Never fabricate a timestamp or retrospectively improve on-time performance by overwriting its baseline.
+
+IMS-05 — MAKE RESET TOKENS ATOMICALLY SINGLE USE [P1]
+
+Evidence:
+
+resetPassword reads user.passwordResetVersion, compares it, then updates WHERE user.id only.
+
+An isolated harness produced two successful password writes for one token, with final version 1.
+
+Consume the reset/version with one atomic guarded database operation and return a generic invalid/used token response when no row is consumed. Update password/version together. Make interaction with changePassword and account/session revocation consistent.
+
+Acceptance:
+
+Two simultaneous requests against real PostgreSQL yield exactly one successful consumption.
+
+Replay, expiration and concurrent password change cannot apply a second reset.
+
+Verify database row counts/results rather than relying on an in-memory check.
+
+Also finish recovery delivery reliability: request-reset currently awaits the email provider while the frontend has a 10-second timeout, and provider failures are merely logged. Use a durable bounded delivery mechanism where needed, neutral response timing/messaging, safe retry/idempotency, a test mail sink and operator-visible failure state. Protect any persisted reset credential material. Do not claim an email was delivered because a request was queued.
+
+IMS-06 — FINISH SESSION EXPIRY, REVOCATION AND SIGN-OUT [P1]
+
+Evidence:
+
+Access JWTs expire after 15 minutes.
+
+Node authenticate and .NET JWT handling trust signed claims without an account/session revocation check.
+
+Password reset/change increments resetVersion without revoking access JWTs.
+
+Logout only clears a cookie.
+
+ApiAuthService fires logout without awaiting it and ignores failure.
+
+DataContext maps 401 to generic source unavailable while AuthContext remains signed in.
+
+Implement an explicit revocable-session contract enforced by every reachable service, including reset/change, logout, disabled users and role changes. Choose an appropriate existing-stack design without exposing password hashes or storing access JWTs in browser storage.
+
+Handle 401 centrally with sensitive-state cleanup, clear session-expired copy and a useful reauthentication/return path. A 15-minute expiry is acceptable if intentionally handled; do not invent a mandatory refresh-token feature. If renewal is added, bound its lifecycle and verify revocation. Make server sign-out completion/failure truthful and prevent an unnoticed immediate return to the old session after a failed logout.
+
+Acceptance:
+
+Captured pre-revocation credentials fail through Node and gateway/.NET after reset/logout/disable/role change according to the documented policy.
+
+Expiry is distinguishable from unavailable data.
+
+Network failure during logout has explicit behavior.
+
+Preserve HttpOnly/Secure cookie policy, existing Origin/CSRF protection and root-base first-party Vercel API calls.
+
+IMS-07 — MAKE PURCHASE-ORDER PROCESSING DURABLE [P1]
+
+Evidence:
+
+src/IMSOP.SupplyChainService/Controllers/OrdersController.cs saves the order then attempts Service Bus delivery.
+
+Broker failures/missing queue names are logged but Created is still returned.
+
+No durable outbox, dispatcher or reconciliation state is present.
+
+No explicit request idempotency key is supported.
+
+Use request DTOs and validate permitted organization/supplier relationships. Persist a draft/order and any required outbox message atomically. Add stable idempotency/message identity, bounded retries and recoverable failed/pending dispatch state. Dispose/reuse transport clients appropriately. If dispatch is disabled, expose a truthful saved draft/pending state; do not pretend fulfillment started.
+
+Acceptance:
+
+Commit then crash, broker outage, duplicate submission, transport retry and redelivery preserve one logical order and recover message delivery.
+
+Test actual database transactions with an isolated broker/transport double.
+
+Do not activate incomplete purchasing forms or invent supplier IDs to demonstrate success.
+
+IMS-08 — ADD REAL SYSTEM QUALIFICATION AND REQUIRED TYPE CHECKING [P1]
+
+Evidence:
+
+Node read tests use mocked selection chains, including no-op where/order/offset.
+
+Browser live sessions use page.route fulfilment.
+
+.NET tests exercise data annotations.
+
+Password-reset browser tests use a URL shape different from the mailer.
+
+Frontend CI builds Vite without an explicit tsc --noEmit step.
+
+Keep useful unit/fixture tests. Add a small reproducible system suite using isolated PostgreSQL, real Node/.NET gateway/services, the browser and an isolated mail sink. Test the features changed by this task through their actual HTTP contracts and database effects.
+
+Cover membership/roles, cookie forwarding, generated reset links, single-use concurrency, sessions, webhook ordering/idempotency, order outbox, pagination, report safety and migration upgrade. Include non-UTC process/database timezone cases; current Node SQL timestamp fields are timezone-naive and must not be silently reinterpreted.
+
+Add frontend pnpm exec tsc --noEmit to required CI. Run the current tests/builds/audits and keep thresholds intact. External providers can be stubbed; do not replace the database/gateway under test with fixtures and call it end-to-end.
+
+Acceptance:
+
+Fresh and upgraded isolated databases run under documented commands.
+
+Deliberately broken SQL, cookies, tenant scope and emitted reset links fail the suite.
+
+Label unit, mocked browser, real-stack and hosted results separately.
+
+Keep secrets, real emails and customer data out of fixtures/artifacts.
+
+IMS-09 — QUERY THE AUTHORIZED DATASET WITH BOUNDED SERVER FILTERS [P2]
+
+Evidence:
+
+DataContext always fetches limit=500&offset=0.
+
+UI filters, metrics, pagination and Assistant discovery operate only within that cached subset.
+
+Older delayed records can be undiscoverable.
+
+Shipments has no normal manual source-refresh action.
+
+Legacy reports and telemetry read entire tables.
+
+Shipment evidence uses three correlated latest-event lookups and only separate tracking/time indexes.
+
+Implement authorized server-side search/filter/sort with bounded pagination/cursors and compatible aggregate endpoints. Keep old clients compatible deliberately. Define whether metrics/map/exports represent a filtered dataset or a page; label and enforce that consistently.
+
+Add a visible manual refresh, last successful source-read time and independent provider observation time. Bound and cancel obsolete requests. Avoid per-row waterfalls and fast idle polling. Bound telemetry/history/export operations; stream or cap large reports with an explicit scope. Add indexes guided by actual PostgreSQL query plans, including latest-event access patterns.
+
+Acceptance:
+
+More than 500 records, including an old delayed shipment, can be found and included in the correct summary/export.
+
+Test pagination stability, filters, limits, empty scopes and concurrent inserts.
+
+Table, metric, map, Assistant and export scopes agree.
+
+Record measured query plans/representative latency; do not claim general speed improvements from asset size or an index declaration alone.
+
+IMS-10 — CORRECT CURRENCY AND LEGACY REPORT SEMANTICS [P2]
+
+Evidence:
+
+Node orders has totalAmount but no currency.
+
+UI says currency not supplied.
+
+operationsController.ts still prefixes direct order-report amounts with "$".
+
+Remove unsupported currency assumptions from every path. Add explicit validated currency only when source data supports it, preserving unknown legacy values through a safe migration. Do not default historical amounts to EUR/USD or aggregate mixed currencies. Keep raw business amounts and formatting precise. Preserve role checks, HTML escaping, CSV formula neutralization and truthful export feedback.
+
+Acceptance:
+
+Direct report endpoint, UI, Assistant and client export agree for zero, unknown, legacy, mixed-currency and precision/rounding cases.
+
+Every export preserves mode, source, date/filter scope and generation time.
+
+An HTML print workflow must still be labelled Print / Save as PDF.
+
+IMS-11 — FIX EXACT ASSISTANT IDENTITY AND MULTI-RECORD CONTEXT [P2]
+
+Evidence:
+
+client/src/lib/assistant.ts uses question.includes(record.trackingNumber), finds the first item and immediately returns it.
+
+"Look up SHP-10" can return SHP-1.
+
+The live demo query "Compare SHP-8829 and SHP-9921" returned only the first.
+
+item= stable detail context is displayed but not used to fetch an authorized record beyond the cached 500.
+
+The backend supports parcel/other transport modes but the frontend adapter maps them to Unknown.
+
+Use identity-exact parsing/matching for actual carrier/order identifiers, resolve multiple explicitly requested records, and retrieve stable item context through authorized scoped APIs. State unsupported intents/missing or forbidden context accurately. Support a deterministic meaningful comparison or an explicit limitation; never answer for a different record.
+
+Use a typed runtime-validated read contract and preserve supported transport modes/statuses deliberately. Keep source/time links and deterministic data responses. No new model subscription is needed. Do not execute shipment/order/infrastructure actions from Assistant output.
+
+Acceptance:
+
+Prefix collisions, several IDs, one missing/forbidden ID, non-SHP tracking values, stable older records, parcel/other mode, source failure and stale context.
+
+Test supported answers against known data, not arbitrary string presence.
+
+Navigation opens a query for review and never duplicate-sends it.
+
+IMS-12 — MAKE RELEASE IDENTITY AND ARM64 DELIVERY VERIFIABLE [P1]
+
+Evidence:
+
+Deployed /health and /ready are healthy but report no commit/contract/schema version.
+
+Oracle docs target ARM64; CI image publishing has no explicit target platforms.
+
+Oracle build docs pass APP_REVISION but the Dockerfile does not consume it.
+
+Oracle releases are manual and independent from frontend CI.
+
+Add sanitized build/version metadata and image revision labels. Produce explicit ARM64 or verified multi-platform artifacts suitable for the existing target. Create a manifest binding frontend/backend SHAs, API contract/migration version and image digest. Keep manual rollout/approval boundaries intact.
+
+Prepare a concrete Oracle verification/rollback runbook or existing-release tooling: image architecture/digest, installed/runtime revision, readiness, first-party cookies and required endpoint contracts. Do not touch sibling services, duplicate workers, expose internal ports or auto-provision infrastructure. Do not infer a deployed SHA from a successful CI run.
+
+Acceptance:
+
+Target image architecture and immutable digest verified.
+
+Running version endpoint matches the release manifest in an isolated or already-authorized environment.
+
+Compatible backend precedes dependent frontend rollout.
+
+Rollback is demonstrated without claiming data-destructive reverse migrations are safe.
+
+IMS-13 — FIX OR CLEARLY RETIRE THE INCOMPLETE KUBERNETES OPTION [P2]
+
+Evidence:
+
+infrastructure/kubernetes/manifests/backend-deployment.yaml sets production mode but omits required reset/email settings enforced by Node startup.
+
+The initial image uses latest.
+
+Oracle bundle versus Node-only images have different composition/ports.
+
+The deploy script accepts an arbitrary image string.
+
+Determine which deployment paths are supported. Either make Kubernetes a complete validated optional path, or clearly label/archive it as an unsupported example and remove active claims. Use referenced secrets, immutable tested images and correct ports/probes. Validate the production configuration and rollback behavior before claiming support.
+
+Acceptance:
+
+Rendered manifest/preflight detects missing configuration.
+
+A claimed supported path has an isolated boot/readiness and rollback check.
+
+No Azure/AKS/Kubernetes provisioning is required merely to close a stale-documentation finding.
+
+IMS-14 — HARDEN MIGRATION EXECUTION AND RECOVERY [P2]
+
+Evidence:
+
+server/src/migrate.ts checks applied filenames then executes SQL without a migration lock or checksum.
+
+The tree has only an initial Node migration.
+
+Runtime entrypoint performs migrations with the runtime connection.
+
+.NET schema migration is separately controlled.
+
+Serialize migrations; detect changed already-applied migration contents; add immutable forward upgrades; document both schema owners and an expand/contract rollout where necessary. Use a separate migration privilege path where available and keep runtime permissions limited. Do not edit an already-applied initial migration as the upgrade mechanism or delete existing data to make tests pass.
+
+Acceptance:
+
+Fresh install, representative upgrade, concurrent starters, checksum mismatch and partial-release recovery.
+
+Rehearse data-preserving backup/restore before risky schema conversion in an isolated database.
+
+Explain historical timestamp assumptions and validate them before any TIMESTAMPTZ conversion.
+
+IMS-15 — ADD VERIFIABLE OPERATIONS AND RECOVERY EVIDENCE [P2]
+
+Evidence:
+
+Health/readiness/container logs exist.
+
+The reviewed tree does not establish complete request correlation, durable failure monitoring, backup objectives or a restore rehearsal.
+
+Hosted-provider backup settings were not inspected; do not claim they are absent.
+
+Add redacted structured logs and correlation IDs across gateway and services. Surface useful ingestion/outbox/auth errors and bounded metrics without logging credentials/payload secrets. Document operator ownership and failure recovery. Reuse existing provider backup features; create an isolated restore drill/runbook and record actual evidence when access exists.
+
+Acceptance:
+
+Trace one test workflow end to end.
+
+Controlled failure produces an actionable signal and a documented recovery.
+
+Restore a disposable isolated database copy and record recovery time/data point.
+
+Distinguish externally unverified controls from application defects. Do not buy or require a monitoring stack for screenshots.
+
+IMS-16 — COMPLETE A SMALL DURABLE OPERATIONAL CYCLE [P2]
+
+Evidence:
+
+New shipment only explains integration prerequisites.
+
+There is no durable exception acknowledge/assignment/note/resolution workflow.
+
+Production notifications and connector-status/sync registry are unavailable.
+
+Node operational orders and .NET purchase orders remain separate; complete authorized intake is absent.
+
+Forecast/model providers are honestly unconfigured.
+
+Implement a useful, bounded cycle with the existing intake path:
+
+A permitted signed event is accepted and persisted correctly.
+
+The correct workspace sees the shipment and any exception.
+
+An authorized operator can acknowledge/assign/add a note/resolve the review case, with audit history.
+
+The action survives reload and appears in a scoped in-app notification/review feed.
+
+A sanitized integration-status view shows known configuration and last receipt/sync evidence.
+
+Keep review-case resolution separate from carrier-reported delivery status. Do not call a record healthy/connected solely because an old event exists. Add per-user read state and explicit notification capability. Only add external delivery if an existing configured provider and durable delivery handling support it.
+
+Expose purchase-order intake only after authorized organization/supplier/product lists, DTO validation and durable order handling work. Preserve source-qualified Node order IDs versus .NET GUIDs; use an explicit association if needed. Do not build a pretend unified entity.
+
+Live forecasts/ML may remain optional and clearly unavailable with a concrete provider contract and configuration documentation. Useful rules-based exception review is allowed; do not label it a trained model or invent confidence/financial impact.
+
+Acceptance:
+
+One isolated event-to-review-to-persisted-action-to-notification workflow passes through the real stack.
+
+Role/membership checks and reload persistence are verified.
+
+No fake success, automatic booking/rerouting, real provider contact or invented business fact.
+
+IMS-17 — FINISH THE PROFESSIONAL PRODUCT EXPERIENCE [P2]
+
+Preserve IMSOP's existing navy/slate/cyan identity, grouped navigation, responsive cards and shared components. Improve task clarity rather than initiating another cosmetic rewrite.
+
+Evidence:
+
+Repeated primary-flow text discusses authorized reads, Node, .NET GUIDs and API envelopes.
+
+Detail copy says "no operational side effects."
+
+Public demo fixture names contain "for responsive verification."
+
+Auth footer claims a hardcoded "v2.5.0-stable."
+
+Use concise operational copy and clear next steps. Retain a prominent mode badge and meaningful freshness/scope signals. Put technical schemas/provenance detail into contextual Source details/Help; keep only decision-relevant source information visible. Use believable coherent public-demo data and keep hostile/long-string fixtures in tests. Rename unavailable New shipment to a truthful onboarding action until creation is supported. Display real build metadata or omit the version.
+
+Validate desktop/mobile at 360, 390, 768/820 and 1280+ widths in both themes, populated/loading/empty/forbidden/error states. Check keyboard, focus, named icon buttons, dialog titles, reduced motion, zoom, contrast, long labels and menu closing. Keep the first viewport focused on useful work, with maps secondary.
+
+Acceptance:
+
+No horizontal clipping or concealed primary action.
+
+Every visible control works or has a concise useful unavailable explanation.
+
+Existing legacy hash routes, deep links, Back/Forward, return filters, role access and theme persistence still work.
+
+Take and inspect representative screenshots; do not equate screenshot generation with visual QA.
+
+IMS-18 — RECONCILE CURRENT DOCUMENTATION AND EVIDENCE [P2]
+
+Evidence:
+
+Frontend client/public/docs/API_DOCUMENTATION.md advertises OAuth/PKCE, GraphQL, WebSocket/Kafka, UUID shipments and example domains, unlike current implementation.
+
+Backend docs/platform/ARCHITECTURE_DOCUMENTATION.md describes Entra/Redis/SignalR/Arc/worker behavior not established in current source.
+
+verification/RESULTS.md contains a dated local no-push/no-deploy report, while its changes have since been merged.
+
+Produce one authoritative capability/architecture/API/deployment inventory. Distinguish implemented, configured, demo, planned and unavailable. Archive obsolete designs clearly. Update or retire duplicated public PDFs alongside Markdown; do not leave contradictory files accessible as current documentation. Keep dated verification history but add a current release/closure record.
+
+Include a real review document and IMS-01–IMS-18 closure matrix in repository docs with evidence links and current SHAs. Validate examples and links against the tested contracts. Do not infer operational Azure/multi-cloud/AI capabilities from diagram labels or dependencies.
+
+REQUIRED CHECKS AND DELIVERABLES
+
+Run relevant existing mandatory checks after changes:
+
+Frontend: pnpm exec tsc --noEmit; pnpm test; pnpm build including verify; pnpm e2e; required dependency audit.
+
+Backend Node: pnpm -C server test; pnpm -C server build; the new isolated PostgreSQL/system suite.
+
+.NET: restore/build/test src/IMSOP.sln with the repository's supported SDK.
+
+Migration fresh/upgrade/concurrency checks.
+
+Target container architecture/build/configuration/readiness checks.
+
+Real browser/system checks for generated reset links, scoped access, event reduction, order reliability, report consistency and session expiry.
+
+Representative measured performance/accessibility/visual checks appropriate to the changes.
+Do not loosen assertions, audit thresholds or security protections to obtain green output. Do not create implementation-mirroring tests in place of behavioral regression tests.
+
+Finish with:
+
+Concrete implemented outcomes and screenshots for the main workflows.
+
+IMS-01–IMS-18 status table: fixed, verified already fixed, externally blocked with the exact missing prerequisite, or deliberately deferred with a product reason.
+
+Exact test commands/results, clearly separating mocks, real-stack, container and hosted verification.
+
+Repo branches/commits/PR links and a clean account of any pre-existing changes.
+
+Updated API/architecture/deployment/recovery documentation and release metadata.
+
+Any specific external prerequisite, its effect and the completed independent work.
+
+Production deployment status stated accurately. A healthy probe or green CI is not a deployed-version receipt.
+
+Do not stop after the first issue, ask for a nonexistent accompanying review, or report unsupported capabilities as completed. Complete everything available within this scope and produce a reviewable implemented result.
+

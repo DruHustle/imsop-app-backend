@@ -1,120 +1,48 @@
-# API Reference
+# Current API reference
 
-Default local Node API: `http://localhost:3001`  
-Content type: `application/json`
+See [current architecture and contract](CURRENT_PLATFORM.md) and [isolated commands/results](remediation/RESULTS.md). These paths are actual reachable source contracts; the older platform API design is archived.
 
-Real-user authentication uses an `imsop_access` HttpOnly cookie. State-changing cross-site requests are constrained by exact CORS origins and `SameSite=Strict` cookies.
+All operational calls require a valid cookie/bearer session and provisioned workspace. The root Vercel frontend uses same-origin `/api` through its existing first-party proxy. Session cookie is HttpOnly, Secure in production, SameSite=None in production. Cookie mutations require an allowed Origin; do not bypass CSRF checks. API errors return JSON with an `error`; session expiry/revocation returns 401 and `SESSION_EXPIRED`. Unprovisioned accounts return 403; inaccessible stable IDs return 404.
 
-## Health
+| Method/path | Contract / access |
+|---|---|
+| POST `/api/auth/register` | `{email,password,name}`; password 12–128; no workspace automatically assigned |
+| POST `/api/auth/login` | `{email,password}`; response `{user}`, HttpOnly cookie; no JWT response |
+| GET `/api/auth/me` | Public user profile only |
+| GET `/api/auth/session` | Verified session identity, role, workspace and explicit organization association; no password/hash |
+| POST `/api/auth/logout` | Revoke presented session and clear cookie; await 204 |
+| POST `/api/auth/request-reset` | `{email}`; neutral 202 recovery-request acknowledgement, no credential returned |
+| POST `/api/auth/reset-password` | `{token,newPassword}`; one atomic consumption; generic invalid/expired/used response |
+| POST `/api/auth/change-password/:id` | Current and new password; own account; revokes all account sessions |
+| PATCH `/api/auth/profile/:id` | `{name}`; own account only |
+| GET `/api/operations/shipments` | All four roles; bounded list contract below |
+| GET `/api/operations/shipments/summary` | Same authorized filters, aggregate counts and original-promise metric definition |
+| GET `/api/operations/shipments/:id` | Scoped numeric ID; snapshot and projection provenance |
+| GET `/api/operations/shipments/:id/events` | Scoped event metadata, at most 100; no raw webhook payload |
+| GET `/api/operations/orders[/:id]` | Node numeric orders; admin/engineer/analyst; currency nullable |
+| GET `/api/operations/reports/access` | admin/analyst export permission |
+| GET `/api/operations/{shipments,orders}/export/report` | HTML, same filters, cap 10,000, escaped values and report metadata |
+| GET `/api/operations/reviews` | Workspace cases, bounded limit/offset |
+| GET `/api/operations/reviews/operators` | Permitted workspace operator list, admin/engineer |
+| GET/POST `/api/operations/reviews/:id/actions` | Read history; write admin/engineer `{action,version,note?,assigneeId?}`; optimistic version, 409 on conflict |
+| GET `/api/operations/notifications` | Latest 100 scoped review activities with per-user read state; in-app capability |
+| POST `/api/operations/notifications/:id/read` | Persist own read state; no cross-workspace IDs |
+| GET `/api/operations/integrations` | admin/engineer sanitized source registry, configuration flags and last receipt/observation; no connectivity claim |
+| GET/POST `/api/telemetry` | Scoped bounded reads and role-controlled writes |
+| POST `/api/integrations/logistics/:provider/events` | HMAC-signed contract v2; provider bound server-side to workspace |
+| GET `/health`, `/ready`, `/version` | Sanitized revision/contract/schema identity; readiness checks schema/dependencies |
+| GET `/supply-chain/api/v1/orders/:guid` | Separate .NET entity/envelope, organization from live session introspection |
+| GET `/supply-chain/api/v1/orders/{suppliers,products}` | Bounded authorized relationship lists |
+| POST `/supply-chain/api/v1/orders` | admin/engineer; `Idempotency-Key` required; `{supplierId,orderNumber,totalAmount}`; caller organization rejected; draft plus durable outbox |
 
-| Method | Path | Authentication | Purpose |
-|---|---|---|---|
-| GET | `/health` | Public | Process liveness |
-| GET | `/ready` | Public | Database readiness |
+Lists: `limit=1..500`, `offset=0..1000000`, literal `q` (max 200), exact `identifier`, `status` (including attention/active), shipment carrier/mode, `from`/`to` UTC creation dates, `sort=newest|tracking|eta`. Stable-ID `cursor` and `maxId` are available with newest sort; other sorts use bounded offset and maxId. Default no-pagination legacy contract remains a bounded array. Do not supply workspace/organization query identifiers. Dates and timestamps in responses are ISO UTC. Decimal amounts remain exact strings, not inferred currency values.
 
-## Authentication
-
-| Method | Path | Authentication | Body |
-|---|---|---|---|
-| POST | `/api/auth/login` | Public/rate-limited | `{email,password}` |
-| POST | `/api/auth/logout` | User | none |
-| POST | `/api/auth/register` | Public/rate-limited | `{email,password,name}` |
-| GET | `/api/auth/me` | User | none |
-| POST | `/api/auth/request-reset` | Public/rate-limited | `{email}` |
-| POST | `/api/auth/reset-password` | Public/rate-limited | `{token,newPassword}` |
-| PATCH | `/api/auth/profile/{id}` | Same user | `{name}` |
-| POST | `/api/auth/change-password/{id}` | Same user | `{currentPassword,newPassword}` |
-
-Passwords must contain 12–128 characters for real accounts. Reset links expire after 15 minutes and become invalid after use.
-
-## Operations and telemetry
-
-| Method | Path | Roles |
-|---|---|---|
-| GET | `/api/operations/shipments` | admin, engineer, analyst, user |
-| GET | `/api/operations/orders` | admin, engineer, analyst |
-| GET | `/api/operations/shipments/export/report` | admin, analyst |
-| GET | `/api/operations/orders/export/report` | admin, analyst |
-| GET | `/api/telemetry` | admin, engineer, analyst |
-| POST | `/api/telemetry` | admin, engineer |
-
-Telemetry ingestion body:
-
-```json
-{"deviceId":"sensor-42","metricName":"temperature","metricValue":22.5}
-```
-
-## Logistics provider webhook
-
-`POST /api/integrations/logistics/{provider}/events`
-
-Headers:
-
-```text
-X-IMSOP-Timestamp: 1791510000
-X-IMSOP-Signature: sha256=<hex HMAC>
-```
-
-Canonical payload:
+Webhook contract example (isolated sample, not a real provider request):
 
 ```json
-{
-  "eventId": "evt-123",
-  "eventType": "shipment.location",
-  "trackingNumber": "SHP-001-2026",
-  "status": "in_transit",
-  "occurredAt": "2026-10-09T12:00:00.000Z",
-  "origin": "Hamburg Port",
-  "destination": "New York Port",
-  "carrier": "Example Carrier",
-  "transportMode": "sea",
-  "estimatedArrival": "2026-10-20T08:00:00.000Z",
-  "location": {"latitude": 40.684, "longitude": -74.0062, "label": "New York Port"}
-}
+{"eventId":"sample-delivery-1","eventType":"shipment.delivered","trackingNumber":"SAMPLE-10","status":"delivered","occurredAt":"2026-10-27T09:00:00Z","actualArrival":"2026-10-27T08:55:00Z"}
 ```
 
-Sign the exact raw JSON bytes as `HMAC_SHA256(providerSecret, timestamp + "." + rawBody)`. A successful new or duplicate event returns HTTP 202.
+Sign the exact UTF-8 body using `sha256=HMAC_SHA256(secret, timestamp + "." + body)`, headers `x-imsop-timestamp` (epoch seconds within 300 seconds) and `x-imsop-signature`. Secrets are per connector alias, at least 32 characters. Events accept road/rail/air/sea/parcel/other, explicit route corrections and nullable optional evidence. See the reducer contract for tie, clear and delivery-correction semantics. Unknown fields are rejected.
 
-## .NET supply-chain API
-
-All controller endpoints require a JWT with issuer `imsop-api`, audience `imsop-web`, and a valid role. Health endpoints remain public.
-
-| Method | Path | Roles | Description |
-|---|---|---|---|
-| POST | `/api/v1/orders` | admin, engineer, analyst | Create purchase order |
-| GET | `/api/v1/orders/{id}` | admin, engineer, analyst | Retrieve purchase order |
-
-
-## Operational workspace read API (26 October 2026)
-
-These read-only additions reuse `shipments`, `orders`, and `logistics_events`; they do not create orders, shipments, integrations or operational effects. Existing report authorization is preserved.
-
-| Method | Path | Roles | Result |
-|---|---|---|---|
-| GET | `/api/operations/shipments?limit=500&offset=0` | admin, engineer, analyst, user | Bounded shipment snapshot |
-| GET | `/api/operations/shipments/{id}` | admin, engineer, analyst, user | Stable numeric shipment ID; 404 if absent |
-| GET | `/api/operations/shipments/{id}/events?limit=50&offset=0` | admin, engineer, analyst, user | Event DTOs ordered by occurredAt DESC, id DESC |
-| GET | `/api/operations/orders?limit=500&offset=0` | admin, engineer, analyst | Bounded Node operational orders |
-| GET | `/api/operations/orders/{id}` | admin, engineer, analyst | Stable numeric Node order ID |
-| GET | `/api/operations/reports/access` | admin, analyst | `{ "allowed": true }` after server authorization |
-
-Pagination: integer `limit` 1–500 (default 100), integer `offset` 0–1000000 (default 0). Events cap the effective limit at 100. Invalid pagination/IDs return 400, unauthorized sessions 401, disallowed roles 403, missing records 404, unavailable stores 503. No failed source substitutes demonstration data.
-
-Requesting either pagination parameter selects the list envelope:
-
-```json
-{
-  "items": [], "total": 0, "limit": 500, "offset": 0,
-  "source": "node.shipments", "scope": "Newest records by stable database ID"
-}
-```
-
-Without pagination parameters, the legacy array response is retained but **bounded to 100 records**. Records are ordered by stable ID descending. `total` is a separate count of authorized source records; frontend metrics/filtering/reporting use only the explicitly loaded newest-500 scope. This release does not add arbitrary whole-database search or whole-history analytics.
-
-Shipment DTOs keep `id` separate from `trackingNumber`, retain all existing snapshot fields, and add nullable `observedAt`, `receivedAt`, `provider` from the latest stored logistics event ordered by occurrence time and event ID. These are event evidence, not timestamps of every shipment snapshot field or proof of current provider connectivity. The read API does not reconcile out-of-order provider snapshot updates.
-
-Event DTOs contain only `id`, `provider`, `eventType`, `occurredAt`, `receivedAt`; raw webhook payloads are deliberately excluded. Events are associated only through the shipment's stored tracking number. No order/document association is implied.
-
-Node operational orders use numeric IDs, `orderNumber`, nullable `customerId`, `totalAmount`, `status`, and `createdAt`. Their amounts have **no currency contract**. They are not interchangeable with .NET PurchaseOrder GUIDs or `ApiResponse<PurchaseOrder>` envelopes. The .NET service contracts and gateway routes are unchanged. The workspace does not expose purchase-order creation without a full authorized organization/supplier selection flow.
-
-Local tests exercise actual authentication/authorization middleware with deterministic database doubles. They perform no production reads/writes, provider calls, migrations or deployment. PostgreSQL query execution and live cross-service readiness require a separately configured integration environment.
+Order `sent` means accepted by the configured transport, never fulfillment completed. Retry with identical key/content returns the same order; key reuse with changed content returns 409. No purchasing form or invented supplier/product selection is enabled in this release.
