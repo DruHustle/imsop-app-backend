@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { db } from '../config/db';
 import { users } from '../models/schema';
 import { eq } from 'drizzle-orm';
-import bcrypt from 'bcryptjs';
+import { hashPassword, verifyPassword } from '../services/passwords';
 import jwt from 'jsonwebtoken';
 import { AuthRequest } from '../middleware/auth';
 import { getJwtSecret } from '../config/security';
@@ -31,7 +31,7 @@ async function createSession(user: typeof users.$inferSelect) {
 export const login = async (req:Request,res:Response) => {
  try {
   const user=await db.query.users.findFirst({where:eq(users.email,req.body.email)});
-  if(!user || user.disabled || !(await bcrypt.compare(req.body.password,user.password))) return res.status(401).json({error:'Invalid email or password'});
+  if(!user || user.disabled || !(await verifyPassword(req.body.password,user.password))) return res.status(401).json({error:'Invalid email or password'});
   res.cookie('imsop_access',await createSession(user),authCookieOptions());
   res.json({user:publicUser(user)});
  } catch { res.status(503).json({error:'Sign in temporarily unavailable'}); }
@@ -41,7 +41,7 @@ export const register = async (req: Request, res: Response) => {
   const { email, password, name } = req.body;
 
   try {
-    const hashedPassword = await bcrypt.hash(password, 12);
+    const hashedPassword = await hashPassword(password);
     const [newUser] = await db.insert(users).values({
       email,
       password: hashedPassword,
@@ -98,7 +98,7 @@ export const resetPassword = async (req: Request,res:Response) => {
  } catch { return res.status(400).json({error:'This reset link is invalid, expired or already used. Request a new link.'}); }
  try {
   const result=await connection.query(`UPDATE users SET password=$1,password_reset_version=password_reset_version+1,session_version=session_version+1
-   WHERE id=$2 AND password_reset_version=$3 AND NOT disabled RETURNING id`,[await bcrypt.hash(req.body.newPassword,12),decoded.id,decoded.resetVersion]);
+   WHERE id=$2 AND password_reset_version=$3 AND NOT disabled RETURNING id`,[await hashPassword(req.body.newPassword),decoded.id,decoded.resetVersion]);
   if(result.rowCount!==1)return res.status(400).json({error:'This reset link is invalid, expired or already used. Request a new link.'});
   res.json({success:true,message:'Password reset. Sign in with your new password.'});
  } catch { res.status(503).json({error:'Recovery is temporarily unavailable. Your link is retained on this page; retry.'}); }
@@ -131,11 +131,11 @@ export const changePassword = async (req: AuthRequest, res: Response) => {
       where: eq(users.id, Number(id)),
     });
 
-    if (!user || !(await bcrypt.compare(currentPassword, user.password))) {
+    if (!user || !(await verifyPassword(currentPassword, user.password))) {
       return res.status(400).json({ error: 'Invalid current password' });
     }
 
-    const hashedPassword = await bcrypt.hash(newPassword, 12);
+    const hashedPassword = await hashPassword(newPassword);
     const changed=await connection.query(`UPDATE users SET password=$1,password_reset_version=password_reset_version+1,session_version=session_version+1
      WHERE id=$2 AND password_reset_version=$3 AND session_version=$4 AND NOT disabled RETURNING id`,[hashedPassword,user.id,user.passwordResetVersion,user.sessionVersion]);
     if(changed.rowCount!==1) return res.status(409).json({error:'Account changed. Sign in and retry.'});

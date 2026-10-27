@@ -363,3 +363,10 @@ test('legacy UTC timestamp decoder is independent of the process timezone', asyn
   assert.equal(parsed.toISOString(),'2026-10-26T09:00:00.000Z');
  } finally {if(previous===undefined)delete process.env.TZ;else process.env.TZ=previous;}
 });
+
+
+test('new password hashes distinguish 128-character inputs sharing the first 72 bytes', async()=>{
+ const {hashPassword,verifyPassword}=await import('./services/passwords');
+ const a='a'.repeat(100)+'x',b='a'.repeat(100)+'y';const hashed=await hashPassword(a);
+ assert.equal(await verifyPassword(a,hashed),true);assert.equal(await verifyPassword(b,hashed),false);
+});
