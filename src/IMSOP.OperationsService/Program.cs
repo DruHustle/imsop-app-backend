@@ -27,6 +27,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJw
     options.Events = new JwtBearerEvents
     {
         OnTokenValidated = SessionBoundary.Validate,
+        OnChallenge = SessionBoundary.Challenge,
         OnMessageReceived = context =>
         {
             if (!context.Request.Headers.ContainsKey("Authorization")) context.Token = context.Request.Cookies["imsop_access"];

@@ -34,6 +34,7 @@ async function account(role='user',workspaceId:string|null=null) {
 test('mail builder emits a single hash token and preserves configured query parameters',()=>{
  const link=buildResetLink('https://app.imsop.test/?campaign=help#/reset-password?lang=en&token=old','new.token.value');
  assert.equal(new URL(link).searchParams.get('campaign'),'help');
+ assert.match(new URL(link).hash,/^#\/reset-password\?lang=en&token=/);
  assert.equal(new URLSearchParams(new URL(link).hash.split('?')[1]).get('token'),'new.token.value');
 });
 test('PostgreSQL permits exactly one reset; replay and prior access session are rejected',async()=>{

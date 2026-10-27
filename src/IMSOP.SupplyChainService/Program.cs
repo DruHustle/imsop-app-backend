@@ -30,6 +30,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJw
     options.Events = new JwtBearerEvents
     {
         OnTokenValidated = SessionBoundary.Validate,
+        OnChallenge = SessionBoundary.Challenge,
         OnMessageReceived = context =>
         {
             if (!context.Request.Headers.ContainsKey("Authorization")) context.Token = context.Request.Cookies["imsop_access"];
@@ -84,7 +85,14 @@ if (autoMigrate)
 {
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    db.Database.Migrate();
+    db.Database.OpenConnection();
+    try {
+        db.Database.ExecuteSqlRaw("SELECT pg_advisory_lock(491697,2)");
+        db.Database.Migrate();
+    } finally {
+        db.Database.ExecuteSqlRaw("SELECT pg_advisory_unlock(491697,2)");
+        db.Database.CloseConnection();
+    }
 }
 
 app.UseCors("Frontend");

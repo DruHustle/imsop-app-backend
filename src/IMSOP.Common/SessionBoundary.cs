@@ -23,20 +23,27 @@ public static class SessionBoundary
    request.Headers.TryAddWithoutValidation("X-Request-ID",context.HttpContext.TraceIdentifier);
    var factory=context.HttpContext.RequestServices.GetRequiredService<IHttpClientFactory>();
    using var response=await factory.CreateClient("session-boundary").SendAsync(request,context.HttpContext.RequestAborted);
-   if(!response.IsSuccessStatusCode) { context.Fail("Session is expired or unavailable"); return; }
+   if(!response.IsSuccessStatusCode) { if(response.StatusCode != System.Net.HttpStatusCode.Unauthorized) context.HttpContext.Items["session-unavailable"]=true; context.Fail("Session is expired or unavailable"); return; }
    var session=await response.Content.ReadFromJsonAsync<JsonElement>();
    var identity=(ClaimsIdentity)context.Principal!.Identity!;
    foreach(var claim in identity.FindAll(ClaimTypes.Role).ToArray()) identity.RemoveClaim(claim);
    identity.AddClaim(new Claim(ClaimTypes.Role,session.GetProperty("role").GetString()!));
    if(session.GetProperty("workspaceId").ValueKind==JsonValueKind.String) identity.AddClaim(new Claim("workspace_id",session.GetProperty("workspaceId").GetString()!));
    if(session.GetProperty("organizationId").ValueKind==JsonValueKind.String) identity.AddClaim(new Claim("organization_id",session.GetProperty("organizationId").GetString()!));
-  } catch { context.Fail("Session verification unavailable"); }
+  } catch { context.HttpContext.Items["session-unavailable"]=true; context.Fail("Session verification unavailable"); }
+ }
+ public static async Task Challenge(JwtBearerChallengeContext context) {
+  if(context.HttpContext.Items.ContainsKey("session-unavailable")) {
+   context.HandleResponse();context.Response.StatusCode=503;
+   await context.Response.WriteAsJsonAsync(new {error="Session verification temporarily unavailable",code="SESSION_UNAVAILABLE"});
+  }
  }
  public static void UseImsopBoundary(this WebApplication app, string[] allowedOrigins)
  {
   app.Use(async (context,next)=> {
    var candidate=context.Request.Headers["X-Request-ID"].ToString();
    context.TraceIdentifier=System.Text.RegularExpressions.Regex.IsMatch(candidate,"^[a-zA-Z0-9-]{8,64}$") ? candidate : Guid.NewGuid().ToString();
+   context.Request.Headers["X-Request-ID"]=context.TraceIdentifier;
    context.Response.Headers["X-Request-ID"]=context.TraceIdentifier;
    var watch=System.Diagnostics.Stopwatch.StartNew();
    if(context.Request.Cookies.ContainsKey("imsop_access") && !context.Request.Headers.ContainsKey("Authorization") && !new[]{"GET","HEAD","OPTIONS"}.Contains(context.Request.Method)

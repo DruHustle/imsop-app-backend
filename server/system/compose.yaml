@@ -1,0 +1,47 @@
+# Separate names, loopback ports and disposable data. No existing services are used.
+name: imsop-remediation
+services:
+  database:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: imsop_test
+      POSTGRES_PASSWORD: isolated-test-only
+      POSTGRES_DB: imsop_test
+      TZ: Pacific/Honolulu
+    ports: ["127.0.0.1:55467:5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U imsop_test -d imsop_test"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+  sink:
+    image: node:22-bookworm-slim
+    command: ["node", "/sinks.mjs"]
+    volumes: ["./sinks.mjs:/sinks.mjs:ro"]
+    ports: ["127.0.0.1:18027:18027"]
+  backend:
+    image: ${IMSOP_TEST_IMAGE:-imsop-remediation:qualification}
+    depends_on:
+      database: {condition: service_healthy}
+      sink: {condition: service_started}
+    ports: ["127.0.0.1:18067:10000"]
+    environment:
+      NODE_ENV: test
+      ASPNETCORE_ENVIRONMENT: Development
+      DOTNET_ENVIRONMENT: Development
+      DATABASE_URL: postgresql://imsop_test:isolated-test-only@database:5432/imsop_test
+      ConnectionStrings__DefaultConnection: Host=database;Database=imsop_test;Username=imsop_test;Password=isolated-test-only
+      JWT_SECRET: isolated-stack-signing-secret-at-least-32-characters
+      RESET_DELIVERY_KEY: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+      RUN_NODE_MIGRATIONS: "true"
+      Database__AutoMigrate: "true"
+      PASSWORD_RESET_BASE_URL: http://127.0.0.1:4189/?campaign=system-test#/reset-password?lang=en
+      EMAIL_PROVIDER: smtp
+      SMTP_HOST: sink
+      SMTP_PORT: "11027"
+      ALLOWED_ORIGIN: http://127.0.0.1:4189
+      CORS_ALLOWED_ORIGINS: http://127.0.0.1:4189
+      ServiceBus__Enabled: "true"
+      Verification__TransportUrl: http://sink:18027/transport
+      LOGISTICS_WEBHOOK_SECRETS: '{"isolated-carrier":"isolated-signing-secret-at-least-32-characters"}'
+      TZ: Pacific/Honolulu

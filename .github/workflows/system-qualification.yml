@@ -1,0 +1,43 @@
+name: Real stack qualification
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  postgres-gateway:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.4.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+          cache-dependency-path: server/pnpm-lock.yaml
+      - run: pnpm -C server install --frozen-lockfile
+      - run: docker build --build-arg APP_REVISION=${{ github.sha }} -f deploy/oracle/Dockerfile -t imsop-remediation:qualification .
+      - run: docker compose -f server/system/compose.yaml up -d --wait
+      - name: Real PostgreSQL security, reducers and upgrades
+        env:
+          DATABASE_URL: postgresql://imsop_test:isolated-test-only@127.0.0.1:55467/imsop_test
+          NODE_ENV: test
+          TZ: Pacific/Honolulu
+        run: pnpm -C server exec node --test --import tsx system/security.test.ts
+      - name: Real gateway, mail sink and order outbox
+        env:
+          DATABASE_URL: postgresql://imsop_test:isolated-test-only@127.0.0.1:55467/imsop_test
+          NODE_ENV: test
+        run: pnpm -C server exec node --test --import tsx system/gateway.test.ts
+      - name: Prove regression sensitivity
+        env:
+          DATABASE_URL: postgresql://imsop_test:isolated-test-only@127.0.0.1:55467/imsop_test
+          NODE_ENV: test
+        run: pnpm -C server exec node system/mutation-check.mjs
+      - run: bash scripts/restore-drill.sh
+      - name: Stop only the isolated stack
+        if: always()
+        run: docker compose -f server/system/compose.yaml down -v
