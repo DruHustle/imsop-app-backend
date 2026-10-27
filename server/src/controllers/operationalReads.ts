@@ -100,9 +100,10 @@ export function recordFilters(
       if (value) {
         if (typeof value !== "string" || value.length > 100)
           throw new Error("Invalid filter");
-        conditions.push(
-          eq(column, query === "mode" ? value.toLowerCase() : value),
-        );
+        if(query==='carrier' && value==='Not supplied') conditions.push(sql`trim(coalesce(${shipments.carrier},''))=''`);
+        else if(query==='mode' && value==='Unknown') conditions.push(sql`${shipments.transportMode} IS NULL OR lower(${shipments.transportMode}) NOT IN ('road','rail','air','sea','ocean','parcel','other')`);
+        else if(query==='mode' && value.toLowerCase()==='sea') conditions.push(inArray(shipments.transportMode,['sea','ocean']));
+        else conditions.push(eq(column,query==='mode'?value.toLowerCase():value));
       }
     }
   for (const key of ["from", "to"] as const)
