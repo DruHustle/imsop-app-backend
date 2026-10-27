@@ -1,0 +1,26 @@
+provisioning_runs: source=5 restored=5
+users: source=222 restored=222
+workspaces: source=135 restored=135
+workspace_memberships: source=127 restored=127
+logistics_connectors: source=27 restored=27
+shipments: source=4415 restored=4415
+orders: source=15 restored=15
+telemetry: source=0 restored=0
+logistics_events: source=73 restored=73
+review_cases: source=23 restored=23
+review_actions: source=69 restored=69
+auth_sessions: source=278 restored=278
+reset_deliveries: source=60 restored=60
+notification_preferences: source=25 restored=25
+notification_deliveries: source=40 restored=40
+forecast_observations: source=30 restored=30
+forecast_runs: source=15 restored=15
+supply_chain.purchase_orders: source=22 restored=22
+supply_chain.purchase_order_items: source=15 restored=15
+supply_chain.order_outbox: source=22 restored=22
+supply_chain.inventories: source=15 restored=15
+supply_chain.purchase_receipts: source=25 restored=25
+supply_chain.purchase_receipt_items: source=25 restored=25
+Restored snapshot point: 2026-10-27 04:07:36.144471-10
+Disposable destination: imsop_test_restore_1793110056
+Recovery elapsed seconds: 5

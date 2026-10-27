@@ -1,0 +1,35 @@
+TAP version 13
+# Subtest: gateway forwards cookies, rejects public/cross-workspace reads and validates order DTOs
+ok 1 - gateway forwards cookies, rejects public/cross-workspace reads and validates order DTOs
+  ---
+  duration_ms: 423.283666
+  ...
+# Subtest: outbox atomically stores one logical order, survives outage, retries and duplicate redelivery
+ok 2 - outbox atomically stores one logical order, survives outage, retries and duplicate redelivery
+  ---
+  duration_ms: 11838.698709
+  ...
+# Subtest: generated recovery mail reaches only the SMTP sink; .NET rejects reset and logout revoked cookies
+ok 3 - generated recovery mail reaches only the SMTP sink; .NET rejects reset and logout revoked cookies
+  ---
+  duration_ms: 4158.072583
+  ...
+# Subtest: direct service session boundary rejects disabled, role-changed and expired sessions through gateway
+ok 4 - direct service session boundary rejects disabled, role-changed and expired sessions through gateway
+  ---
+  duration_ms: 87.168875
+  ...
+# Subtest: signed intake through gateway seeds a durable review workflow for real browser qualification
+ok 5 - signed intake through gateway seeds a durable review workflow for real browser qualification
+  ---
+  duration_ms: 25.76025
+  ...
+1..5
+# tests 5
+# suites 0
+# pass 5
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 16687.681042

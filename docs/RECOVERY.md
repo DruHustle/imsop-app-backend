@@ -23,3 +23,8 @@ Use only the test Compose database. The drill script refuses any other container
 Proposed initial objectives for owner approval: RPO 24 hours, RTO 4 hours. These are planning targets, not verified production guarantees. Confirm the existing provider's backup retention, encryption, ownership, restore permissions and actual objectives before release. Hosted controls were not inspected and must not be described as absent.
 
 Supply-chain bootstrap auto-migration also uses a PostgreSQL advisory lock around EF migration execution to serialize isolated concurrent starters. Its separate schema lock does not replace coordinating the two schema owners. Production uses a single explicit migration job.
+
+
+Review delivery uses `notification_deliveries`: pending/sending/sent/failed/cancelled/expired, five attempts and a 60-second lease. Claims occur immediately before bounded mail transport. Expired final attempts become failed; opt-out/access loss cancels pending delivery. Messages retain stable provider identity for at-least-once delivery. Disable operational mail separately from recovery with EMAIL_NOTIFICATIONS_ENABLED=false. Never infer inbox receipt from sent state. The reset worker now also recovers a crash on its final attempt and erases credential material.
+
+Purchase receipts are immutable evidence with stable request keys; correct an operational mistake through a reviewed forward adjustment rather than replaying the receipt or deleting history. The receipt transaction serializes per order and warehouse/product stock, validates remaining quantities and scopes, and prevents double inventory effects.

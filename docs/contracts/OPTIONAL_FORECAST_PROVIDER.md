@@ -1,8 +1,8 @@
-# Optional forecast provider contract (reserved, not implemented)
+# Optional forecast provider contract (implemented adapter)
 
-Exception review works without a model. No forecast adapter or external account is activated by this release. The UI deliberately stays unavailable until an adapter, evidence coverage and a provider have been qualified. Setting a URL alone does not enable forecasts.
+Exception review works without a model. A server adapter and scoped UI are implemented. An external account is not provisioned. Predictions require configured provider settings and actual source observations.
 
-A future server-only adapter must validate a contract such as:
+The server-only adapter validates this contract:
 
 ```json
 {
@@ -35,4 +35,8 @@ Workspace and source/product associations must come from authorized server data.
 
 Response identity, snapshot, horizon, product set and units must match the request. Missing provider/model/source/time evidence makes the response unavailable. Confidence, accuracy, savings or financial impact may be shown only with separately supplied validated evidence, never inferred from an icon or a point prediction. No response may execute inventory, booking, purchase or infrastructure actions.
 
-Reserved configuration for a future adapter: `FORECAST_PROVIDER_URL` (HTTPS allowlisted destination), `FORECAST_PROVIDER_CREDENTIAL_REF` (existing server secret mechanism), `FORECAST_TIMEOUT_MS` (bounded 1,000–10,000), and `FORECAST_MAX_HORIZON_DAYS` (1–90). These settings are not read by the current code and do not connect an account. They describe a future implementation contract, not an implemented endpoint. No paid subscription is required or provisioned.
+Configuration: `FORECAST_PROVIDER_URL` (administrator-selected HTTPS endpoint; redirects rejected), `FORECAST_PROVIDER_NAME` (expected response alias), optional `FORECAST_PROVIDER_TOKEN` (server-only bearer secret), `FORECAST_MAX_HORIZON_DAYS` (1–90, default 30). Requests time out after ten seconds; responses are capped at 1 MiB. HTTP loopback/sink is allowed only with NODE_ENV=test. No URL or credential comes from a caller.
+
+`POST /api/operations/forecasts/observations` accepts `{observations:[{sku,date,quantity,unit,source}]}` from admin/engineer members. It validates distinct historical SKU/date rows, finite nonnegative quantities with up to four decimal places and explicit source/units, committing the upload atomically. Matching SKU/date uploads explicitly correct existing observations. `POST /api/operations/forecasts` accepts `{horizonDays}` from admin/engineer/analyst. The last year is bounded to 10,000 observations and 100 products; mixed units are rejected. Every product/day/unit and the request/provider/snapshot identity must match. Invalid/partial responses return 502 and are not saved. `GET /api/operations/forecasts` exposes only the current workspace's counts and five latest persisted responses. No cross-workspace response can be requested by caller-supplied IDs.
+
+The contract double in system qualification returns labelled synthetic responses solely to verify transport/validation. It establishes no forecast accuracy or model capability. Production still needs a real authorized provider and source data.

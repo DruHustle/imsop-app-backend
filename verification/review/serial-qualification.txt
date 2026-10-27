@@ -1,0 +1,297 @@
+ Container imsop-remediation-sink-1 Running 
+ Container imsop-remediation-database-1 Running 
+ Container imsop-remediation-backend-1 Recreate 
+ Container imsop-remediation-backend-1 Recreated 
+ Container imsop-remediation-database-1 Waiting 
+ Container imsop-remediation-database-1 Healthy 
+ Container imsop-remediation-backend-1 Starting 
+ Container imsop-remediation-backend-1 Started 
+ Container imsop-remediation-database-1 Waiting 
+ Container imsop-remediation-sink-1 Waiting 
+ Container imsop-remediation-backend-1 Waiting 
+ Container imsop-remediation-database-1 Healthy 
+ Container imsop-remediation-sink-1 Healthy 
+ Container imsop-remediation-backend-1 Healthy 
+TAP version 13
+# Subtest: mail builder emits a single hash token and preserves configured query parameters
+ok 1 - mail builder emits a single hash token and preserves configured query parameters
+  ---
+  duration_ms: 40.468208
+  ...
+# {"event":"request","correlationId":"7bcb3a76-846d-40b5-9df0-8801e7736821","method":"POST","route":"/login","status":200,"durationMs":20}
+# {"event":"request","correlationId":"0285adf7-c698-4df2-99af-a5c9664b078f","method":"POST","route":"/reset-password","status":200,"durationMs":42}
+# {"event":"request","correlationId":"d226a553-f1f0-4eb6-9ca3-aaad78708d6a","method":"POST","route":"/reset-password","status":400,"durationMs":48}
+# {"event":"request","correlationId":"e2bcad55-fe75-451f-8336-957b31465b4e","method":"GET","route":"/me","status":401,"durationMs":8}
+# {"event":"request","correlationId":"de7baa33-ffc3-4017-bc36-3765d7aa7de7","method":"POST","route":"/reset-password","status":400,"durationMs":24}
+# Subtest: PostgreSQL permits exactly one reset; replay and prior access session are rejected
+ok 2 - PostgreSQL permits exactly one reset; replay and prior access session are rejected
+  ---
+  duration_ms: 133.927709
+  ...
+# {"event":"request","correlationId":"a9e145b8-cd4b-483f-83b3-3ccda1bbf323","method":"POST","route":"/login","status":200,"durationMs":5}
+# {"event":"request","correlationId":"0853f79e-7ebf-4bc4-a6d4-1e929771fdd7","method":"GET","route":"/me","status":200,"durationMs":3}
+# {"event":"request","correlationId":"2e9cb3a7-fb80-4757-a9cd-71209ed5797c","method":"POST","route":"/logout","status":204,"durationMs":3}
+# {"event":"request","correlationId":"d536141e-b637-4155-870c-d0aff1e17fd6","method":"GET","route":"/me","status":401,"durationMs":2}
+# {"event":"request","correlationId":"fc78dfda-83aa-443b-9d84-2fef80d43ae8","method":"POST","route":"/login","status":200,"durationMs":11}
+# {"event":"request","correlationId":"82746125-a9ef-4aee-a553-2865b91f1715","method":"GET","route":"/me","status":200,"durationMs":5}
+# {"event":"request","correlationId":"273b07d8-14cc-459c-803e-8ffa40b5bf0c","method":"GET","route":"/me","status":401,"durationMs":3}
+# {"event":"request","correlationId":"78eee1a3-4e84-4f4e-a38c-5b84ef469b8a","method":"POST","route":"/login","status":200,"durationMs":5}
+# {"event":"request","correlationId":"b62d54d0-b6d7-4320-9032-74443168a95a","method":"GET","route":"/me","status":200,"durationMs":2}
+# {"event":"request","correlationId":"cf9faa40-f525-472e-bda9-77fc17b60118","method":"GET","route":"/me","status":401,"durationMs":1}
+# Subtest: logout, disabled accounts and role changes revoke captured cookies
+ok 3 - logout, disabled accounts and role changes revoke captured cookies
+  ---
+  duration_ms: 61.557834
+  ...
+# {"event":"request","correlationId":"2056807d-aff3-46ef-9796-5a08d00dfea7","method":"POST","route":"/reset-password","status":400,"durationMs":1}
+# {"event":"request","correlationId":"036d1881-2726-4763-b71e-f599413f7ddb","method":"POST","route":"/reset-password","status":400,"durationMs":0}
+# {"event":"request","correlationId":"f802f3cf-85e5-48ce-805e-0f3723821a9f","method":"POST","route":"/request-reset","status":202,"durationMs":197}
+# Subtest: short passwords fail before reset and unknown reset requests disclose no token
+ok 4 - short passwords fail before reset and unknown reset requests disclose no token
+  ---
+  duration_ms: 200.19025
+  ...
+# {"event":"request","correlationId":"f9a8c718-4d6c-4bed-80a7-460cff1a9b00","method":"POST","route":"/login","status":200,"durationMs":6}
+# {"event":"request","correlationId":"ddba7cbf-ec04-400b-b041-0fced69bb5e0","method":"POST","route":"/login","status":200,"durationMs":5}
+# {"event":"request","correlationId":"683951fa-32e0-4fac-b01d-92510124bfd3","method":"POST","route":"/login","status":200,"durationMs":7}
+# {"event":"request","correlationId":"ffcfb8d8-6a7e-4a51-b6bd-bf873b3a0d72","method":"GET","route":"/shipments","status":200,"durationMs":7}
+# {"event":"request","correlationId":"b5bc3c33-921a-4d05-9e02-cdb9d320efec","method":"GET","route":"/shipments/:id","status":404,"durationMs":3}
+# {"event":"request","correlationId":"e7da0bc3-7dd2-4745-8ded-f6332e95461f","method":"GET","route":"/shipments/:id/events","status":404,"durationMs":2}
+# {"event":"request","correlationId":"9c45db11-76d5-43e6-8a75-380af8683439","method":"GET","route":"/shipments","status":403,"durationMs":2}
+# {"event":"request","correlationId":"642a6983-86a0-429b-ba02-52ea67e4c7e6","method":"GET","route":"/shipments","status":400,"durationMs":2}
+# {"event":"request","correlationId":"1b3b7cd2-d0bc-4243-bf09-ff011ec7572f","method":"GET","route":"/shipments/export/report","status":403,"durationMs":2}
+# {"event":"request","correlationId":"93490881-903c-4b93-9141-6c62e298f1ed","method":"GET","route":"/shipments/export/report","status":200,"durationMs":5}
+# {"event":"request","correlationId":"d5f046a0-7ead-479e-9dce-2a22e8df2121","method":"GET","route":"/orders","status":403,"durationMs":2}
+# Subtest: workspace provisioning separates public registration, lists, details, events and reports
+ok 5 - workspace provisioning separates public registration, lists, details, events and reports
+  ---
+  duration_ms: 75.448292
+  ...
+# {"event":"request","correlationId":"51bff8b7-05d0-47db-baaa-0e7bb60f51d4","method":"POST","route":"/login","status":200,"durationMs":5}
+# {"event":"request","correlationId":"712d4c29-ed7b-4c51-a3b6-fa41912623a3","method":"GET","route":"/shipments","status":200,"durationMs":4}
+# Subtest: unknown-mode filtering cannot escape the workspace predicate
+ok 6 - unknown-mode filtering cannot escape the workspace predicate
+  ---
+  duration_ms: 16.798833
+  ...
+# {"event":"request","correlationId":"504688c5-1fd7-432b-89ab-ceef1f0cfa10","method":"POST","route":"/login","status":200,"durationMs":4}
+# {"event":"request","correlationId":"2dc3541a-86c4-4630-b9db-f7d6cc8d269a","method":"POST","route":"/:provider/events","status":202,"durationMs":9}
+# {"event":"request","correlationId":"d66fdee9-f06e-4428-87bf-beacc2fa73a2","method":"POST","route":"/:provider/events","status":202,"durationMs":5}
+# {"event":"request","correlationId":"ebd31be2-5f3e-4b25-b875-d0aaed04d081","method":"POST","route":"/:provider/events","status":202,"durationMs":3}
+# {"event":"request","correlationId":"65dbb149-df38-49a0-b908-6a9989a46ec1","method":"POST","route":"/:provider/events","status":409,"durationMs":2}
+# {"event":"request","correlationId":"e653f440-cf24-43c4-a3c2-4b01070d9061","method":"GET","route":"/shipments/:id/events","status":200,"durationMs":3}
+# {"event":"request","correlationId":"d805f9bd-7215-4d89-b9f5-6cdfaa86303c","method":"POST","route":"/:provider/events","status":202,"durationMs":4}
+# {"event":"request","correlationId":"2e45289a-bb72-4fae-a8a7-b05c30eab970","method":"POST","route":"/:provider/events","status":202,"durationMs":8}
+# {"event":"request","correlationId":"33dee27d-049c-4b5e-80dc-9596fec7e629","method":"POST","route":"/:provider/events","status":202,"durationMs":4}
+# {"event":"request","correlationId":"4404172a-3ec9-45bd-88d4-7e1b423b6354","method":"GET","route":"/shipments/summary","status":200,"durationMs":4}
+# {"event":"request","correlationId":"ec7f6e47-8f29-47bc-83ac-5e3be3176923","method":"POST","route":"/:provider/events","status":202,"durationMs":6}
+# {"event":"request","correlationId":"e895b30a-3ca5-436a-8e7d-d4d6b2062741","method":"GET","route":"/reviews","status":200,"durationMs":3}
+# {"event":"request","correlationId":"7d166107-9cf3-447b-8c32-569afb7eb779","method":"POST","route":"/reviews/:id/actions","status":200,"durationMs":5}
+# {"event":"request","correlationId":"7fea899a-e6a9-4c41-aedd-adbdc0b32d7a","method":"POST","route":"/reviews/:id/actions","status":409,"durationMs":3}
+# {"event":"request","correlationId":"fb04b218-e4f0-436b-ace6-2f88eb72d1ff","method":"POST","route":"/reviews/:id/actions","status":200,"durationMs":3}
+# {"event":"request","correlationId":"7d4926eb-d0c6-42ef-a96b-ad54728d5bfe","method":"GET","route":"/reviews","status":200,"durationMs":2}
+# {"event":"request","correlationId":"abf2929f-eeca-4a4b-9f1a-7a0e410fbe3c","method":"GET","route":"/notifications","status":200,"durationMs":2}
+# {"event":"request","correlationId":"a8d4924f-ffbc-47dd-8d8f-3007d0759eb2","method":"POST","route":"/notifications/:id/read","status":200,"durationMs":4}
+# {"event":"request","correlationId":"55c15b01-6acf-4cea-8581-a39cf400f1c6","method":"GET","route":"/notifications","status":200,"durationMs":2}
+# Subtest: provider events reduce deterministically across ordering, sparse fields, duplicate identity and workspace/provider collision
+ok 7 - provider events reduce deterministically across ordering, sparse fields, duplicate identity and workspace/provider collision
+  ---
+  duration_ms: 94.725916
+  ...
+# {"event":"request","correlationId":"93441318-9e69-49dc-81fa-ab0458832a0d","method":"POST","route":"/login","status":200,"durationMs":3}
+# {"event":"request","correlationId":"21982ceb-d184-4b6a-b101-f6062f78f83d","method":"GET","route":"/shipments","status":200,"durationMs":10}
+# {"event":"request","correlationId":"3467951b-c177-4a14-9143-7fc868356c3c","method":"GET","route":"/shipments","status":200,"durationMs":4}
+# {"event":"request","correlationId":"14dfc99b-5a7d-419b-a1e6-e57f47ac6577","method":"GET","route":"/shipments","status":200,"durationMs":3}
+# {"event":"request","correlationId":"28296c37-7ec7-4974-9155-50618121a21a","method":"GET","route":"/shipments/export/report","status":200,"durationMs":3}
+# Subtest: server search finds older delayed records beyond 500; high-water pagination excludes concurrent inserts
+ok 8 - server search finds older delayed records beyond 500; high-water pagination excludes concurrent inserts
+  ---
+  duration_ms: 41.484709
+  ...
+# Applied migration 001_access_recovery.sql
+# Applied migration 002_projection_reviews.sql
+# Applied migration 003_projection_provenance.sql
+# Applied migration 004_delivery_forecasts.sql
+# Applied migration 005_provisioning_audit.sql
+# Subtest: migration upgrade preserves legacy rows; concurrent runners serialize and changed SQL is rejected
+ok 9 - migration upgrade preserves legacy rows; concurrent runners serialize and changed SQL is rejected
+  ---
+  duration_ms: 321.867417
+  ...
+# {"event":"request","correlationId":"d2ab1eed-8506-4a93-9415-950b048b96cf","method":"POST","route":"/login","status":200,"durationMs":8}
+# {"event":"request","correlationId":"1e2aac4b-9ecb-43d3-aad4-2401b6e76a70","method":"POST","route":"/reset-password","status":400,"durationMs":1}
+# {"event":"request","correlationId":"c28167b6-a5b8-4f24-8080-7c56332975f8","method":"POST","route":"/reset-password","status":200,"durationMs":36}
+# {"event":"request","correlationId":"75a7e317-4134-4701-a0ca-7022e723c8ea","method":"POST","route":"/change-password/:id","status":409,"durationMs":50}
+# {"event":"request","correlationId":"5bdf5c60-2812-44c6-a23a-6a6b297206b3","method":"POST","route":"/login","status":200,"durationMs":8}
+# {"event":"request","correlationId":"d504893c-83c0-4846-abd8-40fc9e119463","method":"GET","route":"/me","status":401,"durationMs":2}
+# Subtest: expired resets, malformed credentials and concurrent password changes cannot consume a second version
+ok 10 - expired resets, malformed credentials and concurrent password changes cannot consume a second version
+  ---
+  duration_ms: 91.643375
+  ...
+# {"event":"request","correlationId":"809f2f83-aa54-4a54-8ac8-9d7503d74cd8","method":"POST","route":"/login","status":200,"durationMs":6}
+# {"event":"request","correlationId":"64894312-bfd9-4592-923c-0341e60b9333","method":"POST","route":"/:provider/events","status":202,"durationMs":6}
+# {"event":"request","correlationId":"1371f488-ee5e-453c-be43-12b52655305d","method":"POST","route":"/:provider/events","status":202,"durationMs":6}
+# {"event":"request","correlationId":"fec1bc7b-98e7-4882-a065-16b1767ff52c","method":"POST","route":"/:provider/events","status":202,"durationMs":12}
+# {"event":"request","correlationId":"d7573bb9-e877-4fe4-bb28-f5574540a99e","method":"GET","route":"/shipments/summary","status":200,"durationMs":5}
+# {"event":"request","correlationId":"6c3cb7cd-26c0-4b00-b07c-0cb9c1c06882","method":"GET","route":"/shipments/export/report","status":200,"durationMs":7}
+# {"event":"request","correlationId":"1f537e2d-49fa-44c9-b0ec-3d88d2de4620","method":"POST","route":"/:provider/events","status":202,"durationMs":27}
+# {"event":"request","correlationId":"c17b2645-1903-4120-96c5-1c0d3b2d8404","method":"GET","route":"/shipments/summary","status":200,"durationMs":5}
+# {"event":"request","correlationId":"4bb41de5-d97e-41a8-8e45-a1c3e42a00c0","method":"POST","route":"/:provider/events","status":202,"durationMs":10}
+# {"event":"request","correlationId":"556b1d4f-12f1-4d6f-8ff1-66a258f18e0e","method":"GET","route":"/shipments/summary","status":200,"durationMs":4}
+# {"event":"request","correlationId":"1ed2d4cf-134a-46a8-af6a-a576b5abcabd","method":"POST","route":"/:provider/events","status":400,"durationMs":0}
+# {"event":"request","correlationId":"1c463e8b-0262-4138-8e49-e5619caa2c92","method":"GET","route":"/orders","status":200,"durationMs":9}
+# {"event":"request","correlationId":"0798abfd-fd79-43b3-832d-1bca8b489b79","method":"GET","route":"/orders/export/report","status":200,"durationMs":5}
+# Subtest: delivery evidence corrections and currency reports preserve original promise, UTC and exact source amounts
+ok 11 - delivery evidence corrections and currency reports preserve original promise, UTC and exact source amounts
+  ---
+  duration_ms: 131.800125
+  ...
+# {"event":"request","correlationId":"1085954e-8497-4e56-bce0-26b6ce41c350","method":"POST","route":"/login","status":200,"durationMs":5}
+# {"event":"request","correlationId":"1847873a-35bb-4b1b-b441-624601347880","method":"GET","route":"/me","status":401,"durationMs":0}
+# Subtest: an invalid explicit Authorization header never falls back to an authenticated cookie
+ok 12 - an invalid explicit Authorization header never falls back to an authenticated cookie
+  ---
+  duration_ms: 9.658208
+  ...
+1..12
+# tests 12
+# suites 0
+# pass 12
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1702.482208
+TAP version 13
+# Subtest: purchase items, exact decimals, tenant validation, retry and receiving update stock atomically once
+ok 1 - purchase items, exact decimals, tenant validation, retry and receiving update stock atomically once
+  ---
+  duration_ms: 719.842708
+  ...
+# Subtest: review email is explicitly opted in, transactional, scoped, cancellable and accepted only by the SMTP sink
+ok 2 - review email is explicitly opted in, transactional, scoped, cancellable and accepted only by the SMTP sink
+  ---
+  duration_ms: 8351.539542
+  ...
+# Subtest: forecast requests require source observations and preserve workspace, horizon, units and provider evidence
+ok 3 - forecast requests require source observations and preserve workspace, horizon, units and provider evidence
+  ---
+  duration_ms: 108.024167
+  ...
+# Subtest: a reset worker crash on its final lease becomes a failed row with erased credential material
+ok 4 - a reset worker crash on its final lease becomes a failed row with erased credential material
+  ---
+  duration_ms: 4887.680834
+  ...
+# Subtest: reviewed ownership provisioning defaults to dry-run and refuses cross-workspace reassignment atomically
+ok 5 - reviewed ownership provisioning defaults to dry-run and refuses cross-workspace reassignment atomically
+  ---
+  duration_ms: 123.267417
+  ...
+# Subtest: ownership inventory uses a read-only snapshot, preserves IDs and leaves every proposed assignment blank
+ok 6 - ownership inventory uses a read-only snapshot, preserves IDs and leaves every proposed assignment blank
+  ---
+  duration_ms: 94.141458
+  ...
+1..6
+# tests 6
+# suites 0
+# pass 6
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 14430.447
+ Container imsop-remediation-backend-1 Restarting 
+ Container imsop-remediation-backend-1 Started 
+ Container imsop-remediation-sink-1 Running 
+ Container imsop-remediation-backend-1 Running 
+ Container imsop-remediation-database-1 Running 
+ Container imsop-remediation-database-1 Waiting 
+ Container imsop-remediation-database-1 Healthy 
+ Container imsop-remediation-sink-1 Waiting 
+ Container imsop-remediation-backend-1 Waiting 
+ Container imsop-remediation-database-1 Waiting 
+ Container imsop-remediation-database-1 Healthy 
+ Container imsop-remediation-sink-1 Healthy 
+ Container imsop-remediation-backend-1 Healthy 
+TAP version 13
+# Subtest: gateway forwards cookies, rejects public/cross-workspace reads and validates order DTOs
+ok 1 - gateway forwards cookies, rejects public/cross-workspace reads and validates order DTOs
+  ---
+  duration_ms: 423.283666
+  ...
+# Subtest: outbox atomically stores one logical order, survives outage, retries and duplicate redelivery
+ok 2 - outbox atomically stores one logical order, survives outage, retries and duplicate redelivery
+  ---
+  duration_ms: 11838.698709
+  ...
+# Subtest: generated recovery mail reaches only the SMTP sink; .NET rejects reset and logout revoked cookies
+ok 3 - generated recovery mail reaches only the SMTP sink; .NET rejects reset and logout revoked cookies
+  ---
+  duration_ms: 4158.072583
+  ...
+# Subtest: direct service session boundary rejects disabled, role-changed and expired sessions through gateway
+ok 4 - direct service session boundary rejects disabled, role-changed and expired sessions through gateway
+  ---
+  duration_ms: 87.168875
+  ...
+# Subtest: signed intake through gateway seeds a durable review workflow for real browser qualification
+ok 5 - signed intake through gateway seeds a durable review workflow for real browser qualification
+  ---
+  duration_ms: 25.76025
+  ...
+1..5
+# tests 5
+# suites 0
+# pass 5
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 16687.681042
+broken SQL: rejected by real PostgreSQL/HTTP assertion
+lost cookie: rejected by real PostgreSQL/HTTP assertion
+missing workspace predicate: rejected by real PostgreSQL/HTTP assertion
+wrong emitted reset route: rejected by real PostgreSQL/HTTP assertion
+provisioning_runs: source=5 restored=5
+users: source=222 restored=222
+workspaces: source=135 restored=135
+workspace_memberships: source=127 restored=127
+logistics_connectors: source=27 restored=27
+shipments: source=4415 restored=4415
+orders: source=15 restored=15
+telemetry: source=0 restored=0
+logistics_events: source=73 restored=73
+review_cases: source=23 restored=23
+review_actions: source=69 restored=69
+auth_sessions: source=278 restored=278
+reset_deliveries: source=60 restored=60
+notification_preferences: source=25 restored=25
+notification_deliveries: source=40 restored=40
+forecast_observations: source=30 restored=30
+forecast_runs: source=15 restored=15
+supply_chain.purchase_orders: source=22 restored=22
+supply_chain.purchase_order_items: source=15 restored=15
+supply_chain.order_outbox: source=22 restored=22
+supply_chain.inventories: source=15 restored=15
+supply_chain.purchase_receipts: source=25 restored=25
+supply_chain.purchase_receipt_items: source=25 restored=25
+Restored snapshot point: 2026-10-27 04:07:36.144471-10
+Disposable destination: imsop_test_restore_1793110056
+Recovery elapsed seconds: 5
+{"fixture":"synthetic authorized scale selection","records":620,"oldDelayed":"LARGE-0001"}
+ Container imsop-remediation-backend-1 Restarting 
+ Container imsop-remediation-backend-1 Started 
+ Container imsop-remediation-database-1 Running 
+ Container imsop-remediation-sink-1 Running 
+ Container imsop-remediation-backend-1 Running 
+ Container imsop-remediation-database-1 Waiting 
+ Container imsop-remediation-database-1 Healthy 
+ Container imsop-remediation-sink-1 Waiting 
+ Container imsop-remediation-backend-1 Waiting 
+ Container imsop-remediation-database-1 Waiting 
+ Container imsop-remediation-sink-1 Healthy 
+ Container imsop-remediation-database-1 Healthy 
+ Container imsop-remediation-backend-1 Healthy 

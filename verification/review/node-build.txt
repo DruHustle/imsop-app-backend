@@ -1,0 +1,4 @@
+
+> server@1.0.0 build /Users/andrewgotora/Software Development/GitHub/imsop-app/imsop-app-backend/server
+> tsc
+

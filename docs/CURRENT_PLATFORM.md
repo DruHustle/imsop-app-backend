@@ -10,13 +10,14 @@ Authoritative as of 27 October 2026. This document supersedes the archived platf
 | Recovery | Implemented; provider configuration required in production | Encrypted PostgreSQL delivery queue; bounded retries; SMTP sink only in local qualification; acceptance means requested, never delivered |
 | Shipment intake/projection | Implemented; configured providers only | Signed canonical webhook, workspace/provider/tracking identity, deterministic event replay, field provenance, immutable promise |
 | Operational orders | Implemented scoped read/export | Node numeric records; unknown currency remains null; exact decimal strings |
-| Purchase orders | Implemented API, separate GUID domain | Scoped supplier DTO, organization from verified session, transaction and outbox; draft/pending/disabled/failed/sent state |
+| Purchase orders | Implemented API, separate GUID domain | Scoped supplier/product DTO, source currency, item totals, transaction/outbox, idempotent partial receiving and stock updates; draft/pending/disabled/failed/sent state |
 | Exception review | Implemented | Signed exception → review → acknowledge/assign/note/resolve → audit → per-user in-app notification |
 | Integration status | Implemented registry | Configuration and receipt evidence; no inference of current connectivity or successful provider sync |
 | Analytics | Implemented descriptive metric | On time = actual arrival <= retained original promise; denominator requires explicit evidence of both |
 | Assistant | Implemented deterministic retrieval | Exact identifiers, several records, authorized stable details; no model, bookings or side effects |
-| Forecasts/ML/weather | Optional, unavailable | Provider must supply versioned request/response, source/date/horizon, evidence and configuration; no provider account or paid subscription added |
-| External notifications | Unavailable | In-app feed is durable. No email/push preference or delivery capability is implied |
+| Forecast provider adapter | Implemented; optional server configuration | Scoped historical source observations, bounded horizon, strict matching provider/model/snapshot/product/date/unit response, persisted runs; no model or account fabricated |
+| Weather/ML training | Not implemented | No trained model, weather evidence, accuracy or financial impact is inferred |
+| Review email notifications | Implemented; disabled until configured and opted in | Transactional queue, per-workspace preferences, bounded retries/leases, stable IDs, cancellation on opt-out/access removal. Provider acceptance is not inbox delivery |
 | Oracle | Supported target; manual release | Existing ARM64 Software Engineering Backend VM; independent of Onesa and sibling applications |
 | Kubernetes/Azure/Redis/Entra/GraphQL/WebSockets/Kafka/SignalR/Arc | Historical designs or unqualified examples | No active operational capability claimed |
 
@@ -52,4 +53,15 @@ The frontend loads the complete matching selection in bounded pages, at most 10,
 
 Request logs use validated/generated correlation IDs across gateway, service and Node, with status, duration and route template. Credentials, body, email recipients and query strings are excluded from custom logs. Failure signals cover ingestion, reset delivery and outbox. This is application evidence, not a claim about hosted monitoring/backup settings.
 
-The concrete reserved optional forecast request/response and configuration contract is documented [here](contracts/OPTIONAL_FORECAST_PROVIDER.md). No adapter or operational prediction capability is implied. The UTC treatment of legacy timestamp reads is the retained application contract, not evidence about every historical producer's timezone; storage conversion remains deferred until that evidence is validated.
+The implemented optional forecast request/response and configuration contract is documented [here](contracts/OPTIONAL_FORECAST_PROVIDER.md). The provider must supply actual predictions; no account, model or observation history is invented. The UTC treatment of legacy timestamp reads is the retained application contract, not evidence about every historical producer's timezone; storage conversion remains deferred until that evidence is validated.
+
+
+## Follow-up review and completion
+
+The user authorized closing remaining code gaps and merging to main. [Follow-up review](remediation/FOLLOWUP-2026-10-27.md) supersedes the initial product deferrals. Purchasing is now available inside Orders for admin/engineer users: select actual scoped suppliers/products, supply source currency/prices, save a durable order, and record evidence-based partial warehouse receipts. Receipt keys and order/stock locks prevent replay and concurrent over-receipt. Legacy rows without item/currency evidence retain that absence. New order messages use contract 3 (decimal amount strings plus items/currency); existing queued contract 2 messages remain intact.
+
+Operational emails are off unless `EMAIL_NOTIFICATIONS_ENABLED=true` and the existing mail provider is configured. Members must opt in for each workspace. Queued events are rechecked against current membership, disabled state and preference before send. In-app notices remain independent. No real email was sent during qualification.
+
+Forecasts require an administrator-supplied HTTPS `FORECAST_PROVIDER_URL`, `FORECAST_PROVIDER_NAME`, optional server-only `FORECAST_PROVIDER_TOKEN` and a 1–90 day `FORECAST_MAX_HORIZON_DAYS`. Source observations are explicitly uploaded by admin/engineer; shipment counts and purchase amounts are not used as demand. The UI exposes source import, forecast requests, persisted evidence and provider limitations. The isolated provider is explicitly a contract double, not a prediction model.
+
+Production provisioning remains pending verified assignments by the owner's explicit instruction. No production memberships or mappings are approved/applied. New audit schema 005 records future reviewed-plan execution transactionally and makes replays harmless; it does not assign any legacy row.

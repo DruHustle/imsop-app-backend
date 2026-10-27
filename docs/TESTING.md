@@ -18,6 +18,7 @@ docker buildx build --platform linux/arm64 --build-arg APP_REVISION=$(git rev-pa
 docker compose -f server/system/compose.yaml up -d --wait
 DATABASE_URL=postgresql://imsop_test:isolated-test-only@127.0.0.1:55467/imsop_test NODE_ENV=test TZ=Pacific/Honolulu pnpm -C server exec node --test --import tsx system/security.test.ts
 DATABASE_URL=postgresql://imsop_test:isolated-test-only@127.0.0.1:55467/imsop_test NODE_ENV=test pnpm -C server exec node --test --import tsx system/gateway.test.ts
+DATABASE_URL=postgresql://imsop_test:isolated-test-only@127.0.0.1:55467/imsop_test NODE_ENV=test pnpm -C server exec node --test --import tsx system/completion.test.ts
 DATABASE_URL=postgresql://imsop_test:isolated-test-only@127.0.0.1:55467/imsop_test NODE_ENV=test pnpm -C server exec node system/mutation-check.mjs
 NODE_ENV=test pnpm -C server exec node --import tsx system/configuration-check.ts
 bash scripts/restore-drill.sh
@@ -44,3 +45,5 @@ Node process timezone is Honolulu in the real database suite; the Compose databa
 Stop only this named test stack with `docker compose -f server/system/compose.yaml down -v` after collecting evidence. It never touches existing IMSOP development, Onesa or sibling containers. See `docs/remediation/RESULTS.md` for exact results and limitations.
 
 For a deliberate fresh-install rerun, use `IMSOP_DISPOSABLE_FRESH_INSTALL=yes bash server/system/fresh-boot-check.sh`. It deletes only the named disposable test stack's own volumes. PostgreSQL readiness checks use TCP, preventing the initialization server's temporary Unix socket from falsely satisfying readiness. The migration connector also retries bounded transient startup refusals. No application runtime schema privilege is required when migrations are executed separately as documented.
+
+The follow-up suite adds actual purchase-item/receipt races and stock effects, opt-in SMTP acceptance/cancellation, provider response validation/isolation, reset final-attempt recovery and reviewed-plan dry-run/apply/conflict behavior. New browser completion uses the same seeded account before the reset matrix. Run backend suites and browser suites serially: the recovery matrix deliberately restarts only its disposable backend; running gateway tests concurrently would interrupt their connections.

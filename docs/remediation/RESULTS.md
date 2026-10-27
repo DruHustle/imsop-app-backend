@@ -1,4 +1,6 @@
-# IMSOP remediation qualification — 27 October 2026
+# Initial IMSOP remediation qualification — 27 October 2026
+
+Historical initial qualification. See [follow-up review and current gap closure](FOLLOWUP-2026-10-27.md) for the completed purchasing/email/forecast code and current revisions.
 
 The [supplied review](REVIEW-2026-10-26.txt) and [IMS-01–IMS-18 closure matrix](CLOSURE.md) are real repository content. All results below are isolated qualification; no production merge, deployment, customer mutation, provider connection or real mail send occurred.
 

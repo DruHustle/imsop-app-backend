@@ -1,0 +1,34 @@
+# Final follow-up qualification — 27 October 2026
+
+See [review and gap closure](../../docs/remediation/FOLLOWUP-2026-10-27.md). Application revisions are backend `84802bf1c62049a9ba024fa7d7eb950399159b75` and frontend `46aaeeb2f0705b8817b00c7f4b25873630cd9bee`. Later commits contain test/document/evidence only. Both original trees were clean; histories/remotes remain independent. Main merge is authorized by the user's follow-up and is tracked in backend PR #5/frontend PR #7. This is isolated qualification, not a production Oracle deployment or real provider receipt.
+
+| Exact command (backend checkout) | Result | Evidence |
+|---|---|---|
+| `pnpm -C server test` | 14 passed | [Node tests](node-tests.txt) |
+| `pnpm -C server build` | Passed | [Node build](node-build.txt) |
+| `DATABASE_URL=postgresql://imsop_test:isolated-test-only@127.0.0.1:55467/imsop_test NODE_ENV=test TZ=Pacific/Honolulu pnpm -C server exec node --test --import tsx system/security.test.ts` | 12 passed; actual PostgreSQL/direct HTTP, fresh/upgrade/concurrent/checksum and UTC behavior | [Security/migration](postgres.txt) |
+| `DATABASE_URL=postgresql://imsop_test:isolated-test-only@127.0.0.1:55467/imsop_test NODE_ENV=test pnpm -C server exec node --test --import tsx system/gateway.test.ts` | 5 passed; actual YARP/.NET/EF/outbox/mail-sink | [Gateway](gateway.txt) |
+| `DATABASE_URL=postgresql://imsop_test:isolated-test-only@127.0.0.1:55467/imsop_test NODE_ENV=test pnpm -C server exec node --test --import tsx system/completion.test.ts` | 6 passed; receipt races/stock, email opt-in/cancellation, forecast isolation/validation, final-attempt reset recovery, reviewed-plan provisioning | [Completion](completion.txt) |
+| `DATABASE_URL=postgresql://imsop_test:isolated-test-only@127.0.0.1:55467/imsop_test NODE_ENV=test pnpm -C server exec node system/mutation-check.mjs` | All four deliberately broken SQL/cookie/scope/reset-route variants rejected | [Mutation sensitivity](mutations.txt) |
+| `bash scripts/restore-drill.sh` | All 23 critical table counts matched; 5 seconds; recorded snapshot 2026-10-27 14:07:36.144471 UTC | [Restore](restore.txt) |
+| `docker build --target dotnet-build -f deploy/oracle/Dockerfile -t imsop-remediation:dotnet-build .` then `docker run --rm --entrypoint /bin/sh imsop-remediation:dotnet-build -c 'dotnet restore src/IMSOP.sln && dotnet build src/IMSOP.sln --no-restore -c Release && dotnet test src/IMSOP.sln --no-build -c Release'` | .NET 8 build: zero warnings/errors; 6 tests passed | [.NET](dotnet.txt) |
+| `docker buildx build --platform linux/arm64 --build-arg APP_REVISION=84802bf1c62049a9ba024fa7d7eb950399159b75 -f deploy/oracle/Dockerfile -t imsop-remediation:qualification --metadata-file /tmp/imsop-graph-image.json --load .` | ARM64 image built with immutable manifest digest | [Build](arm64-build.txt), [identity](image-identity.json) |
+| `node server/system/release-receipt.mjs 84802bf1c62049a9ba024fa7d7eb950399159b75` | Exact running revision/schema match; ready 200, authorized .NET 200, anonymous 401, canonical correlation header | [Receipt](version-receipt.json) |
+
+[Release manifest](release-manifest.json) binds the exact frontend/backend application SHAs, API 2, Node `005_provisioning_audit.sql`, EF `202610270002_PurchaseReceiving` and the local ARM64 image digest. The manifest is a qualified candidate, not a claim about a published main image or installed production SHA.
+
+Rollback switched only the disposable backend to scoped-compatible `a28839e255a9b8ae143ba92df0352a52aa30aec1`, checked version/readiness and all 23 table counts, then restored the candidate. [Before](rollback-before.json), [compatible rollback](rollback-old.json), [restored](rollback-after.json). All operational counts were identical; no reverse migration was run.
+
+The original measured query plans/latency remain in [initial evidence](../query-plans.txt); no new general performance claim is made. The existing production configuration rejection check remains unchanged; optional delivery/forecast providers require explicit configuration. The EF snapshot was regenerated using the supported EF 8 tool from the reviewed model. Existing SQL migration files were not edited as an upgrade mechanism; new Node/EF migrations expand schema and preserve legacy absence.
+
+Use `bash server/system/qualify.sh` for serial backend qualification, then run the frontend system suite. The browser recovery matrix restarts its disposable backend, so it must not overlap gateway tests or image switching. Interrupted preview processes must be stopped before rerun; the test config keeps reuseExistingServer=false. No assertions or rate limits were relaxed to accommodate orchestration or fixture reruns.
+
+Frontend [follow-up evidence](https://github.com/DruHustle/imsop-app-frontend/blob/fix/imsop-remediation-20261027/verification/remediation/FOLLOWUP.md) records explicit typing, 38 unit/component + 4 deployment tests, build verification, zero known production dependency vulnerabilities, 86 desktop/mobile fixtures and 10 real-browser workflows. Mocks, provider doubles and actual database/gateway/browser effects are labelled separately.
+
+The owner approved no production assignments. Production ownership mapping and approved members remain pending verification, not inferred. No production records, provider accounts or real recipients were used. Hosted backup/monitoring configuration and Oracle installed revision are externally unverified. Main-branch merge does not imply those external steps are complete.
+
+`bash server/system/production-boot-check.sh` also booted a distinct fresh disposable stack in actual NODE_ENV/ASPNETCORE/DOTNET Production mode. Readiness was 200; both Node and supply-chain paths returned anonymous 401, allowed only the explicit HTTPS origin and omitted CORS permission for a forbidden origin. See [production boot](production-boot.txt). No account or provider request was made, and that stack removed only its own resources afterward.
+
+Owner follow-up: keep legacy production records unassigned and preserve IDs. A private read-only inventory and non-executable review draft were prepared from the explicitly configured connection; no roles/domains/repository/demo identities were used to infer ownership. Production provisioning remains pending verified assignments, separate from deployment. The configured connection was not linked to the installed runtime, so its inventory is not a claim about any other database.
+
+The graphical follow-up adds explicit per-event source positions/status for safe chronology and historical replay. Null event locations remain null and raw provider payloads are withheld; actual PostgreSQL and HTTP allow-list tests cover this contract. Full serial output is in [qualification](serial-qualification.txt). Actual WebGL orbit/zoom, loss fallback and paused replay were exercised in the frontend suite.

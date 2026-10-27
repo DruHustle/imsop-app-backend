@@ -452,11 +452,15 @@ test("bounded operational reads preserve permissions, identities and event prove
       "eventType",
       "id",
       "occurredAt",
+      "position",
       "provider",
       "receivedAt",
+      "status",
     ]);
     assert.equal(eventPage.items[0].occurredAt, "2026-10-24T06:00:00Z");
     assert.equal(eventPage.items[0].payload, undefined);
+    assert.equal(eventPage.items[0].position, null);
+    assert.equal(eventPage.items[0].status, null);
     rows = [];
     const empty = await (await read("admin", "/shipments?limit=5")).json();
     assert.equal(empty.total, 0);
