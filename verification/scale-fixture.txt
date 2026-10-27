@@ -1,0 +1,1 @@
+{"fixture":"synthetic authorized scale selection","records":620,"oldDelayed":"LARGE-0001"}

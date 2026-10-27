@@ -1,0 +1,32 @@
+scoped status page
+Limit  (cost=9.41..9.42 rows=5 width=14) (actual time=0.049..0.050 rows=1 loops=1)
+  Buffers: shared hit=3
+  ->  Sort  (cost=9.41..9.42 rows=5 width=14) (actual time=0.048..0.048 rows=1 loops=1)
+        Sort Key: id DESC
+        Sort Method: quicksort  Memory: 25kB
+        Buffers: shared hit=3
+        ->  Index Scan using idx_shipments_status on shipments  (cost=0.15..9.35 rows=5 width=14) (actual time=0.027..0.037 rows=1 loops=1)
+              Index Cond: ((status)::text = 'delayed'::text)
+              Filter: (workspace_id = '0fa3ce3c-609e-4591-8a29-710a151261b6'::uuid)
+              Rows Removed by Filter: 4
+              Buffers: shared hit=3
+Planning:
+  Buffers: shared hit=14
+Planning Time: 0.288 ms
+Execution Time: 0.086 ms
+projection history
+Limit  (cost=1.22..1.22 rows=1 width=496) (actual time=0.059..0.060 rows=5 loops=1)
+  Buffers: shared hit=1
+  ->  Sort  (cost=1.22..1.22 rows=1 width=496) (actual time=0.057..0.058 rows=5 loops=1)
+        Sort Key: occurred_at, ((event_id)::character varying(100)) COLLATE "C"
+        Sort Method: quicksort  Memory: 26kB
+        Buffers: shared hit=1
+        ->  Seq Scan on logistics_events  (cost=0.00..1.21 rows=1 width=496) (actual time=0.023..0.025 rows=5 loops=1)
+              Filter: ((workspace_id = '5e8db032-ba76-4de1-8503-37aa0a4ddcf9'::uuid) AND ((provider)::text = 'metric-e32a3352-8173-4d84-a46d-fda913b9c64b'::text) AND ((tracking_number)::text = 'METRIC-b07625af-1f68-49d9-ae60-12644c3baf22'::text))
+              Rows Removed by Filter: 7
+              Buffers: shared hit=1
+Planning:
+  Buffers: shared hit=12
+Planning Time: 0.353 ms
+Execution Time: 0.105 ms
+{"samples":30,"process":"local host to disposable ARM64 PostgreSQL","medianMs":8.572750000000042,"p95Ms":35.656375000000025,"note":"Representative local sample only; no general production latency claim."}

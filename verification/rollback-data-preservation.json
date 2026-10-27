@@ -1,0 +1,19 @@
+{
+  "countsUnchanged": true,
+  "counts": {
+    "shipments": 630,
+    "orders": 3,
+    "logistics_events": 12,
+    "review_cases": 2,
+    "review_actions": 4,
+    "supply_chain.purchase_orders": 1,
+    "supply_chain.order_outbox": 1
+  },
+  "revisions": [
+    "d2e78b391d5772e3b8ac2b8d919e8aabb40b3012",
+    "f8b52e56b16184adfb209f112c99c40bbb482483",
+    "d2e78b391d5772e3b8ac2b8d919e8aabb40b3012"
+  ],
+  "reverseMigrations": false,
+  "environment": "isolated"
+}

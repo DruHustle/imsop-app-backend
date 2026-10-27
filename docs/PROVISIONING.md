@@ -1,0 +1,27 @@
+# Explicit workspace provisioning and safe legacy recovery
+
+Operations owner: the administrator responsible for the existing IMSOP backend release and database. Product/data owner must approve a manifest associating legacy records, provider aliases and users with workspaces. There is no automatic public-signup access, email-domain inference or guessed row ownership.
+
+1. Take a provider-native backup and record its recovery point. Rehearse restoring a disposable copy using [recovery](RECOVERY.md).
+2. Run the read-only preflight with a migration/admin connection: `NODE_ENV=test DATABASE_URL=<reviewed database> pnpm -C server exec tsx system/preflight.ts`. It emits counts only. Review unassigned records, ambiguous provider/tracking groups and unprovisioned accounts.
+3. Prepare an operator-reviewed mapping file outside version control with source evidence. Create UUID workspaces and, if supported by evidence, a separate `dotnet_organization_id` association to an existing .NET organization. Do not copy identifiers from an API request.
+4. List only approved memberships and active workspaces in the reviewed plan. Execute through the separately approved transactional, audited tool below. A user has one active workspace per login. Multiple memberships require explicit operator selection; there is no workspace switch UI in this release. Role changes remain controlled server operations.
+5. List only the explicitly reviewed shipment/order/telemetry/event row IDs in that plan. Resolve each legacy shipment's provider and related event history before assigning; never split/merge ambiguous histories automatically. The new composite identity can detect collisions. Unresolved rows remain inaccessible. Do not set a historical promise from a current ETA.
+6. List a `logistics_connectors` binding for each independently scoped signing-key alias in that plan. Configure the matching HMAC secret in the existing deployment secret mechanism. Provider alias and workspace are server controlled.
+7. Verify two users from separate workspaces, an unprovisioned registration, role permissions, guessed IDs, reports, events and .NET organization mapping in a restored isolated copy. Require users to log in again after provisioning; the workspace/version trigger invalidates old sessions.
+
+This repository deliberately does not include an executable blanket ownership backfill. None was applied to production. Legitimate internal accounts are preserved in place; their access resumes through explicit membership and a reviewed mapping. Never relax scope merely to restore an ambiguous historical view.
+
+
+## Reviewed-plan execution
+
+The follow-up includes `server/system/provision-workspaces.ts`. Its default is a dry-run: `DATABASE_URL=<migration connection> NODE_ENV=test node --import tsx system/provision-workspaces.ts private-reviewed-plan.json` (run from server). Supply `--apply` only for the exact reviewed plan. Keep that file outside Git because it contains account identities and ownership evidence. The plan has version=1, sourceEvidence, workspaces `{id,name,organizationId}`, members `{userId,expectedEmail,workspaceId}`, records `{table,id,workspaceId,provider?}`, and connectors `{provider,workspaceId}`. Tables are a closed enum. No IDs or owners are inferred. Apply runs serializably, checks identity/existing scope, rejects connector rebinding and cross-workspace reassignment, preserves roles, and commits atomically. Account workspace changes revoke prior sessions. The real PostgreSQL suite verifies dry-run, apply and rollback on conflict. No production plan has been supplied or applied.
+
+
+## Current owner decision and private review draft
+
+The owner explicitly approved **no production membership or record assignments**. Legacy records and IDs must be preserved and remain unassigned until ownership is verified. No role, email domain, repository owner or demo identity is evidence of ownership. Production provisioning is **pending verified assignments**, separate from deployment.
+
+`NODE_ENV=test node --import tsx system/ownership-inventory.ts explicit-env-file private-output-directory` (from server) collects record IDs/counts, stored ownership references, existing workspace/user IDs and memberships using one READ ONLY repeatable snapshot. The output review draft is non-executable; proposed workspace IDs remain null and approved memberships remain empty. It includes a database identity fingerprint as a consistency check, not an authorization credential. The actual configured target inventory and draft were prepared outside both application repositories in `.private-remediation`, protected with mode 0700/0600 and Git-ignore rules. The connection's association to the installed Oracle runtime was not verified; these files must not be treated as proof about any other database or as an approved plan.
+
+Future execution requires a separately reviewed plan containing the matching targetFingerprint and explicit sourceEvidence, plus PROVISIONING_OPERATOR for an identifiable audit actor. It runs transactionally, locks the plan identity, checks existing scope/identities and records the exact plan, database role, operator, hash and time in provisioning_runs. Replaying the same plan is a no-op. A different target database, workspace reassignment or connector rebinding is rejected. Runtime services do not execute this tool. Apply the forward audit migration under the schema owner before an eventual approved execution. No production execution occurred.

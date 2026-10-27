@@ -1,3 +1,4 @@
+using IMSOP.Common;
 using Azure.Messaging.ServiceBus;
 using IMSOP.SupplyChainService.Data;
 using Microsoft.EntityFrameworkCore;
@@ -7,6 +8,9 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Logging.ClearProviders();
+builder.Logging.AddJsonConsole();
+builder.Logging.AddFilter("Microsoft.EntityFrameworkCore.Database.Command", LogLevel.Warning);
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -25,27 +29,18 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJw
     };
     options.Events = new JwtBearerEvents
     {
+        OnTokenValidated = SessionBoundary.Validate,
+        OnChallenge = SessionBoundary.Challenge,
         OnMessageReceived = context =>
         {
-            if (string.IsNullOrEmpty(context.Token)) context.Token = context.Request.Cookies["imsop_access"];
+            if (!context.Request.Headers.ContainsKey("Authorization")) context.Token = context.Request.Cookies["imsop_access"];
             return Task.CompletedTask;
         }
     };
 });
 builder.Services.AddAuthorization(options => options.FallbackPolicy = new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build());
 
-var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
-    ?? builder.Configuration["CORS_ALLOWED_ORIGINS"]?
-        .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-    ??
-    [
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost:4200",
-        "http://127.0.0.1:4200"
-    ];
+var allowedOrigins = SessionBoundary.ResolveAllowedOrigins(builder.Configuration, !builder.Environment.IsDevelopment());
 
 builder.Services.AddCors(options =>
 {
@@ -65,28 +60,40 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(conn);
 });
 
-var serviceBusConn = builder.Configuration["ServiceBus:ConnectionString"]
-    ?? "Endpoint=sb://localhost/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
-builder.Services.AddSingleton(new ServiceBusClient(serviceBusConn));
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddHostedService<IMSOP.SupplyChainService.OrderDispatcher>();
+builder.Services.AddSingleton<IMSOP.SupplyChainService.IOrderTransport,IMSOP.SupplyChainService.OrderTransport>();
+builder.Services.AddHttpClient("order-transport", client => client.Timeout=TimeSpan.FromSeconds(15));
 
+builder.Services.AddHttpClient("session-boundary", client => client.Timeout = TimeSpan.FromSeconds(3));
 var app = builder.Build();
+app.UseImsopBoundary(allowedOrigins);
 
 var autoMigrate = app.Configuration.GetValue("Database:AutoMigrate", false);
 if (autoMigrate)
 {
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    db.Database.Migrate();
+    db.Database.OpenConnection();
+    try {
+        db.Database.ExecuteSqlRaw("SELECT pg_advisory_lock(491697,2)");
+        db.Database.Migrate();
+    } finally {
+        db.Database.ExecuteSqlRaw("SELECT pg_advisory_unlock(491697,2)");
+        db.Database.CloseConnection();
+    }
 }
 
 app.UseCors("Frontend");
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapGet("/health", () => Results.Ok(new { status = "ok", service = "IMSOP.SupplyChainService" })).AllowAnonymous();
+app.MapGet("/version", () => Results.Ok(ReleaseIdentity.Current)).AllowAnonymous();
+app.MapGet("/health", () => Results.Ok(new { status = "ok", release = ReleaseIdentity.Current, service = "IMSOP.SupplyChainService" })).AllowAnonymous();
 app.MapGet("/ready", async (ApplicationDbContext db, CancellationToken cancellationToken) =>
 {
-    var canConnect = await db.Database.CanConnectAsync(cancellationToken);
+    var applied=await db.Database.GetAppliedMigrationsAsync(cancellationToken);
+    var canConnect=applied.Contains("202610270002_PurchaseReceiving");
     return canConnect
         ? Results.Ok(new { status = "ready", service = "IMSOP.SupplyChainService" })
         : Results.Json(new { status = "not-ready", service = "IMSOP.SupplyChainService" }, statusCode: StatusCodes.Status503ServiceUnavailable);

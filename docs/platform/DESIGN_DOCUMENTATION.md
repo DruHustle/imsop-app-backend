@@ -1,3 +1,5 @@
+> ARCHIVED DESIGN — not current implementation or deployment evidence. See [current inventory](../CURRENT_PLATFORM.md).
+
 # IMSOP Database Schema and Design
 
 The IMSOP database schema is built on **Aiven PostgreSQL** to ensure ACID compliance, high availability, and multi-tenancy support. The design is normalized and optimized for supply chain and operations management, with a strong focus on indexing and data retention [1].

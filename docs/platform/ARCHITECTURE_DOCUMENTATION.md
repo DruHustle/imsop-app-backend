@@ -1,3 +1,5 @@
+> ARCHIVED DESIGN — not current implementation or deployment evidence. See [current inventory](../CURRENT_PLATFORM.md).
+
 # IMSOP System Architecture
 
 The IMSOP (Intelligent Multi-Cloud Supply Chain & Operations Platform) is an enterprise-grade platform designed for comprehensive supply chain management and operations. The architecture emphasizes **robustness, security, and high performance** through a modern, cloud-native approach utilizing containerization, Infrastructure as Code (IaC), and advanced monitoring [1].

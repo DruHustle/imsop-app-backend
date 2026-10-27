@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
+const [expected]=process.argv.slice(2);
+assert.match(expected||'',/^[a-f0-9]{40}$/);
+const origin='http://127.0.0.1:18067';
+const version=await(await fetch(origin+'/version')).json();assert.equal(version.revision,expected);assert.equal(version.apiContract,2);assert.equal(version.nodeSchema,'005_provisioning_audit.sql');
+const ready=await fetch(origin+'/ready');assert.equal(ready.status,200);
+const id='imsop-trace-20261027-'+Date.now();
+const fixture=JSON.parse(await fs.readFile('/tmp/imsop-browser-fixture.json','utf8'));
+const login=await fetch(origin+'/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json',Origin:'http://127.0.0.1:4189'},body:JSON.stringify({email:fixture.email,password:'Isolated-test-password-123'})});assert.equal(login.status,200);
+const cookie=login.headers.get('set-cookie').split(';')[0];
+const service=await fetch(origin+'/supply-chain/api/v1/orders/suppliers',{headers:{Cookie:cookie,'X-Request-ID':id}});assert.equal(service.status,200);assert.equal(service.headers.get('x-request-id'),id);
+const me=await fetch(origin+'/api/auth/me',{headers:{'X-Request-ID':id}});assert.equal(me.status,401);assert.equal(me.headers.get('x-request-id'),id);
+console.log(JSON.stringify({environment:'isolated ARM64 bundle',expectedRevision:expected,observedVersion:version,readiness:ready.status,authenticatedDotnetRead:service.status,anonymousSession:me.status,correlationId:id,observedAt:new Date().toISOString(),productionDeployment:false},null,2));

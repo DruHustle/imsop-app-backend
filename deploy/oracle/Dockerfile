@@ -1,10 +1,16 @@
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS dotnet-build
 WORKDIR /src
+COPY src/IMSOP.sln ./src/IMSOP.sln
+COPY src/IMSOP.Common/IMSOP.Common.csproj ./src/IMSOP.Common/
+COPY src/IMSOP.Gateway/IMSOP.Gateway.csproj ./src/IMSOP.Gateway/
+COPY src/IMSOP.OperationsService/IMSOP.OperationsService.csproj ./src/IMSOP.OperationsService/
+COPY src/IMSOP.SupplyChainService/IMSOP.SupplyChainService.csproj ./src/IMSOP.SupplyChainService/
+COPY src/IMSOP.SupplyChainService.Tests/IMSOP.SupplyChainService.Tests.csproj ./src/IMSOP.SupplyChainService.Tests/
+RUN dotnet restore src/IMSOP.sln
 COPY src ./src
-RUN dotnet restore src/IMSOP.sln \
-    && dotnet publish src/IMSOP.Gateway/IMSOP.Gateway.csproj -c Release -o /publish/gateway /p:UseAppHost=false \
-    && dotnet publish src/IMSOP.OperationsService/IMSOP.OperationsService.csproj -c Release -o /publish/operations /p:UseAppHost=false \
-    && dotnet publish src/IMSOP.SupplyChainService/IMSOP.SupplyChainService.csproj -c Release -o /publish/supply-chain /p:UseAppHost=false
+RUN dotnet publish src/IMSOP.Gateway/IMSOP.Gateway.csproj --no-restore -c Release -o /publish/gateway /p:UseAppHost=false \
+    && dotnet publish src/IMSOP.OperationsService/IMSOP.OperationsService.csproj --no-restore -c Release -o /publish/operations /p:UseAppHost=false \
+    && dotnet publish src/IMSOP.SupplyChainService/IMSOP.SupplyChainService.csproj --no-restore -c Release -o /publish/supply-chain /p:UseAppHost=false
 
 FROM node:22-bookworm-slim AS node-build
 WORKDIR /src/server
@@ -12,13 +18,13 @@ ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
 RUN corepack enable
 COPY server/package.json server/pnpm-lock.yaml server/.npmrc server/tsconfig.json server/drizzle.config.ts ./
+RUN pnpm install --frozen-lockfile
 COPY server/src ./src
 COPY server/migrations ./migrations
-RUN pnpm install --frozen-lockfile \
-    && pnpm build \
-    && pnpm prune --prod
+RUN pnpm build && pnpm prune --prod
 
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
+
 USER root
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates curl supervisor \
@@ -39,6 +45,10 @@ COPY --from=node-build --chown=app:app /src/server/migrations ./node-api/migrati
 COPY --chown=app:app deploy/oracle/supervisord.conf /app/supervisord.conf
 COPY --chown=app:app deploy/oracle/entrypoint.sh /app/entrypoint
 RUN chmod 0555 /app/entrypoint
+
+ARG APP_REVISION=unknown
+LABEL org.opencontainers.image.revision=$APP_REVISION org.opencontainers.image.title="IMSOP backend"
+ENV APP_REVISION=$APP_REVISION
 
 ENV NODE_ENV=production \
     ASPNETCORE_ENVIRONMENT=Production \

@@ -1,43 +1,157 @@
-import { Resend } from 'resend';
-import nodemailer from 'nodemailer';
+import { Resend } from "resend";
+import nodemailer from "nodemailer";
 
-type EmailProvider = 'gmail' | 'resend';
-const provider = (): EmailProvider => process.env.EMAIL_PROVIDER === 'resend' ? 'resend' : 'gmail';
-const resendSender = () => process.env.EMAIL_FROM || 'IMSOP <onboarding@resend.dev>';
-const gmailSender = () => process.env.GMAIL_FROM || 'notifications.imsop@gmail.com';
+type EmailProvider = "gmail" | "resend";
+const provider = (): EmailProvider =>
+  process.env.EMAIL_PROVIDER === "resend" ? "resend" : "gmail";
+const resendSender = () =>
+  process.env.EMAIL_FROM || "IMSOP <onboarding@resend.dev>";
+const gmailSender = () =>
+  process.env.GMAIL_FROM || "notifications.imsop@gmail.com";
 
 function resendClient(): Resend {
-  if (!process.env.RESEND_API_KEY) throw new Error('RESEND_API_KEY is not configured');
+  if (!process.env.RESEND_API_KEY)
+    throw new Error("RESEND_API_KEY is not configured");
   return new Resend(process.env.RESEND_API_KEY);
 }
 
 function gmailTransport() {
   const user = gmailSender();
-  const smtp = { host: 'smtp.gmail.com', port: 465, secure: true, connectionTimeout: 10_000, greetingTimeout: 10_000, socketTimeout: 15_000 } as const;
-  if (process.env.GMAIL_CLIENT_ID && process.env.GMAIL_CLIENT_SECRET && process.env.GMAIL_REFRESH_TOKEN) {
+  const smtp = {
+    host: "smtp.gmail.com",
+    port: 465,
+    secure: true,
+    connectionTimeout: 10_000,
+    greetingTimeout: 10_000,
+    socketTimeout: 15_000,
+  } as const;
+  if (
+    process.env.GMAIL_CLIENT_ID &&
+    process.env.GMAIL_CLIENT_SECRET &&
+    process.env.GMAIL_REFRESH_TOKEN
+  ) {
     return nodemailer.createTransport({
       ...smtp,
-      auth: { type: 'OAuth2', user, clientId: process.env.GMAIL_CLIENT_ID, clientSecret: process.env.GMAIL_CLIENT_SECRET, refreshToken: process.env.GMAIL_REFRESH_TOKEN },
+      auth: {
+        type: "OAuth2",
+        user,
+        clientId: process.env.GMAIL_CLIENT_ID,
+        clientSecret: process.env.GMAIL_CLIENT_SECRET,
+        refreshToken: process.env.GMAIL_REFRESH_TOKEN,
+      },
     });
   }
-  if (process.env.GMAIL_APP_PASSWORD) return nodemailer.createTransport({ ...smtp, auth: { user, pass: process.env.GMAIL_APP_PASSWORD.replace(/\s/g, '') } });
-  throw new Error('Gmail credentials are not configured');
+  if (process.env.GMAIL_APP_PASSWORD)
+    return nodemailer.createTransport({
+      ...smtp,
+      auth: { user, pass: process.env.GMAIL_APP_PASSWORD.replace(/\s/g, "") },
+    });
+  throw new Error("Gmail credentials are not configured");
 }
 
 export function isEmailConfigured(): boolean {
-  if (provider() === 'resend') return Boolean(process.env.RESEND_API_KEY && process.env.EMAIL_FROM);
-  return Boolean((process.env.GMAIL_CLIENT_ID && process.env.GMAIL_CLIENT_SECRET && process.env.GMAIL_REFRESH_TOKEN) || process.env.GMAIL_APP_PASSWORD);
+  if (provider() === "resend")
+    return Boolean(process.env.RESEND_API_KEY && process.env.EMAIL_FROM);
+  return Boolean(
+    (process.env.GMAIL_CLIENT_ID &&
+      process.env.GMAIL_CLIENT_SECRET &&
+      process.env.GMAIL_REFRESH_TOKEN) ||
+      process.env.GMAIL_APP_PASSWORD,
+  );
 }
 
-export async function sendPasswordResetEmail(recipient: string, resetUrl: string): Promise<void> {
-  const safeUrl = resetUrl.replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
-  const subject = 'Reset your IMSOP password';
+export async function sendPasswordResetEmail(
+  recipient: string,
+  resetUrl: string,
+  deliveryId?: string,
+): Promise<void> {
+  const safeUrl = resetUrl
+    .replaceAll("&", "&amp;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
+  const subject = "Reset your IMSOP password";
   const text = `A password reset was requested for your IMSOP account. This link expires in 15 minutes:\n\n${resetUrl}\n\nIf you did not request this, ignore this message.`;
   const html = `<p>A password reset was requested for your IMSOP account.</p><p><a href="${safeUrl}">Reset password</a></p><p>This link expires in 15 minutes. If you did not request this, ignore this message.</p>`;
-  if (provider() === 'gmail') {
-    await gmailTransport().sendMail({ from: `IMSOP Notifications <${gmailSender()}>`, to: recipient, subject, text, html });
-    return;
+  await deliverMail(recipient, subject, text, html, deliveryId);
+}
+export async function sendOperationalEmail(
+  recipient: string,
+  subject: string,
+  text: string,
+  deliveryId: string,
+) {
+  await deliverMail(recipient, subject, text, undefined, deliveryId);
+}
+async function smtpSend(
+  transport: ReturnType<typeof nodemailer.createTransport>,
+  message: object,
+) {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    await Promise.race([
+      transport.sendMail(message),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => {
+          transport.close();
+          reject(new Error("Mail transport timed out"));
+        }, 20000);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+    transport.close();
   }
-  const { error } = await resendClient().emails.send({ from: resendSender(), to: recipient, subject, text, html });
-  if (error) throw new Error(`Resend delivery failed: ${error.message}`);
+}
+async function deliverMail(
+  recipient: string,
+  subject: string,
+  text: string,
+  html: string | undefined,
+  deliveryId?: string,
+) {
+  if (
+    process.env.EMAIL_PROVIDER === "smtp" &&
+    process.env.NODE_ENV !== "production"
+  ) {
+    await smtpSend(
+      nodemailer.createTransport({
+        host: process.env.SMTP_HOST || "127.0.0.1",
+        port: Number(process.env.SMTP_PORT || 1025),
+        secure: false,
+        connectionTimeout: 10000,
+        greetingTimeout: 10000,
+        socketTimeout: 15000,
+      }),
+      {
+        from: "IMSOP <recovery@imsop.test>",
+        to: recipient,
+        subject,
+        text,
+        html,
+        messageId: `<${deliveryId}@imsop.test>`,
+      },
+    );
+  } else if (provider() === "gmail") {
+    await smtpSend(gmailTransport(), {
+      from: `IMSOP Notifications <${gmailSender()}>`,
+      to: recipient,
+      subject,
+      text,
+      html,
+      messageId: `<${deliveryId}@imsop.test>`,
+    });
+  } else {
+    const { error } = await resendClient().emails.send(
+      {
+        from: resendSender(),
+        to: recipient,
+        subject,
+        text,
+        ...(html ? { html } : {}),
+      },
+      { idempotencyKey: deliveryId, signal: AbortSignal.timeout(15000) },
+    );
+    if (error) throw new Error("Mail provider rejected delivery");
+  }
 }

@@ -1,0 +1,38 @@
+{
+  "environment": "isolated rollback rehearsal",
+  "version": {
+    "revision": "84802bf1c62049a9ba024fa7d7eb950399159b75",
+    "apiContract": 2,
+    "nodeSchema": "005_provisioning_audit.sql",
+    "supplyChainSchema": "202610270002_PurchaseReceiving"
+  },
+  "readiness": 200,
+  "operationalRowCounts": {
+    "provisioning_runs": 5,
+    "users": 223,
+    "workspaces": 136,
+    "workspace_memberships": 128,
+    "logistics_connectors": 27,
+    "shipments": 5035,
+    "orders": 15,
+    "telemetry": 0,
+    "logistics_events": 73,
+    "review_cases": 23,
+    "review_actions": 69,
+    "auth_sessions": 279,
+    "reset_deliveries": 60,
+    "notification_preferences": 25,
+    "notification_deliveries": 40,
+    "forecast_observations": 30,
+    "forecast_runs": 15,
+    "supply_chain.purchase_orders": 22,
+    "supply_chain.purchase_order_items": 15,
+    "supply_chain.order_outbox": 22,
+    "supply_chain.inventories": 15,
+    "supply_chain.purchase_receipts": 25,
+    "supply_chain.purchase_receipt_items": 25
+  },
+  "observedAt": "2026-10-27T14:12:04.505Z",
+  "reverseMigrations": false,
+  "productionDeployment": false
+}

@@ -1,44 +1,100 @@
-import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
-import { getJwtSecret } from '../config/security';
+import { Request, Response, NextFunction } from "express";
+import jwt from "jsonwebtoken";
+import { getJwtSecret } from "../config/security";
+import { connection } from "../config/db";
 
 export interface AuthenticatedUser {
   id: number;
   email: string;
   role: string;
-  purpose?: string;
+  sessionId: string;
+  workspaceId: string | null;
+  organizationId: string | null;
 }
-
 export interface AuthRequest extends Request {
   user?: AuthenticatedUser;
 }
-
-export const authenticate = (req: AuthRequest, res: Response, next: NextFunction) => {
-  const cookieToken = req.headers.cookie?.split(';').map(value => value.trim()).find(value => value.startsWith('imsop_access='))?.slice('imsop_access='.length);
-  const token = req.headers.authorization?.split(' ')[1] || cookieToken;
-
-  if (!token) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-
+export const authenticate = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
+  const cookie = req.headers.cookie
+    ?.split(";")
+    .map((v) => v.trim())
+    .find((v) => v.startsWith("imsop_access="))
+    ?.slice(13);
+  const token =
+    req.headers.authorization !== undefined
+      ? req.headers.authorization.match(/^Bearer (\S+)$/i)?.[1]
+      : cookie;
+  if (!token)
+    return res
+      .status(401)
+      .json({ error: "Sign in required", code: "SESSION_EXPIRED" });
+  let claims: jwt.JwtPayload;
   try {
-    const decoded = jwt.verify(token, getJwtSecret(), { algorithms: ['HS256'], issuer: 'imsop-api', audience: 'imsop-web' });
-    if (typeof decoded === 'string' || decoded.purpose === 'password-reset'
-      || !Number.isInteger(decoded.id) || typeof decoded.email !== 'string' || typeof decoded.role !== 'string') {
-      return res.status(401).json({ error: 'Invalid token' });
-    }
-    req.user = decoded as unknown as AuthenticatedUser;
+    const decoded = jwt.verify(token, getJwtSecret(), {
+      algorithms: ["HS256"],
+      issuer: "imsop-api",
+      audience: "imsop-web",
+    });
+    if (
+      typeof decoded === "string" ||
+      !Number.isInteger(decoded.id) ||
+      typeof decoded.sid !== "string" ||
+      !/^[a-f0-9-]{36}$/.test(decoded.sid) ||
+      decoded.purpose
+    )
+      throw new Error();
+    claims = decoded;
+  } catch {
+    return res.status(401).json({
+      error: "Your session expired. Sign in again.",
+      code: "SESSION_EXPIRED",
+    });
+  }
+  try {
+    const result = await connection.query(
+      `SELECT u.id,u.email,u.role,s.id AS session_id,s.workspace_id,w.dotnet_organization_id
+   FROM auth_sessions s JOIN users u ON u.id=s.user_id LEFT JOIN workspaces w ON w.id=s.workspace_id
+   WHERE s.id=$1 AND u.id=$2 AND s.revoked_at IS NULL AND s.expires_at>now() AND NOT u.disabled
+   AND s.version=u.session_version AND s.role=u.role AND s.workspace_id IS NOT DISTINCT FROM u.active_workspace_id
+   AND (s.workspace_id IS NULL OR EXISTS(SELECT 1 FROM workspace_memberships m WHERE m.user_id=u.id AND m.workspace_id=s.workspace_id))`,
+      [claims.sid, claims.id],
+    );
+    const row = result.rows[0];
+    if (!row)
+      return res.status(401).json({
+        error: "Your session expired. Sign in again.",
+        code: "SESSION_EXPIRED",
+      });
+    req.user = {
+      id: row.id,
+      email: row.email,
+      role: row.role,
+      sessionId: row.session_id,
+      workspaceId: row.workspace_id,
+      organizationId: row.dotnet_organization_id,
+    };
     next();
-  } catch (error) {
-    res.status(401).json({ error: 'Invalid token' });
+  } catch {
+    res.status(503).json({ error: "Session verification unavailable" });
   }
 };
-
-export const authorize = (roles: string[]) => {
-  return (req: AuthRequest, res: Response, next: NextFunction) => {
-    if (!req.user || !roles.includes(req.user.role)) {
-      return res.status(403).json({ error: 'Forbidden' });
-    }
-    next();
-  };
-};
+export const requireWorkspace = (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) =>
+  req.user?.workspaceId
+    ? next()
+    : res.status(403).json({
+        error: "Ask your workspace administrator to provision access.",
+        code: "WORKSPACE_REQUIRED",
+      });
+export const authorize =
+  (roles: string[]) => (req: AuthRequest, res: Response, next: NextFunction) =>
+    !req.user || !roles.includes(req.user.role)
+      ? res.status(403).json({ error: "Forbidden" })
+      : next();

@@ -1,3 +1,5 @@
+> ARCHIVED DESIGN — not current implementation or deployment evidence. See [current inventory](../CURRENT_PLATFORM.md).
+
 # IMSOP Implementation Guide
 
 **Version:** 2.0.0

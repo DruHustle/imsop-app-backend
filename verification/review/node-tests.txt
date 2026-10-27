@@ -1,0 +1,138 @@
+
+> server@1.0.0 test /Users/andrewgotora/Software Development/GitHub/imsop-app/imsop-app-backend/server
+> NODE_ENV=test node --test --import tsx src/app.test.ts
+
+TAP version 13
+# Subtest: API and authentication limits use independent windows and cover changing paths
+ok 1 - API and authentication limits use independent windows and cover changing paths
+  ---
+  duration_ms: 0.386416
+  ...
+# {"event":"request","correlationId":"2ca940e1-4783-4f38-9b8e-bb495f404f83","method":"GET","route":"unmatched","status":404,"durationMs":3}
+# {"event":"request","correlationId":"4c40894b-26ac-4575-87cd-b4c823df2c3a","method":"POST","route":"unmatched","status":400,"durationMs":7}
+# {"event":"request","correlationId":"42e412a2-7602-411f-8061-1b562374e168","method":"POST","route":"unmatched","status":403,"durationMs":0}
+# {"event":"request","correlationId":"55b7c02a-bc2f-485a-8d95-50ba9bfdf6be","method":"POST","route":"unmatched","status":403,"durationMs":0}
+# Subtest: API errors return JSON and unsafe cross-site cookie requests are rejected
+ok 2 - API errors return JSON and unsafe cross-site cookie requests are rejected
+  ---
+  duration_ms: 32.920833
+  ...
+# Subtest: HTML reports escape stored data
+ok 3 - HTML reports escape stored data
+  ---
+  duration_ms: 0.092875
+  ...
+# Subtest: allowed origins are trimmed and support multiple Vercel domains
+ok 4 - allowed origins are trimmed and support multiple Vercel domains
+  ---
+  duration_ms: 0.129416
+  ...
+# Subtest: production configuration rejects invalid Gmail app passwords
+ok 5 - production configuration rejects invalid Gmail app passwords
+  ---
+  duration_ms: 0.430209
+  ...
+# {"event":"request","correlationId":"ac3484c5-ab41-43d3-a829-2470ab860489","method":"GET","route":"/health","status":200,"durationMs":0}
+# Subtest: GET /health returns ok
+ok 6 - GET /health returns ok
+  ---
+  duration_ms: 6.318334
+  ...
+# {"event":"request","correlationId":"15fd1a1f-f4fd-4ffc-b8b8-4c4314c91305","method":"POST","route":"/register","status":400,"durationMs":3}
+# Subtest: authentication routes validate input before accessing the database
+ok 7 - authentication routes validate input before accessing the database
+  ---
+  duration_ms: 5.496917
+  ...
+# {"event":"request","correlationId":"d85bb210-7722-4df5-97af-85043648fead","method":"GET","route":"/shipments","status":401,"durationMs":1}
+# Subtest: protected operations reject anonymous requests
+ok 8 - protected operations reject anonymous requests
+  ---
+  duration_ms: 2.228583
+  ...
+# {"event":"request","correlationId":"e90492e2-1b4a-4873-8d43-5917f1869249","method":"GET","route":"/shipments","status":401,"durationMs":1}
+# Subtest: legacy claim-only credentials fail closed before role authorization
+ok 9 - legacy claim-only credentials fail closed before role authorization
+  ---
+  duration_ms: 3.8215
+  ...
+# {"event":"request","correlationId":"9a62494d-9a1b-44aa-a318-53d56f9c6bfa","method":"POST","route":"/:provider/events","status":401,"durationMs":1}
+# Subtest: logistics webhooks reject invalid signatures
+ok 10 - logistics webhooks reject invalid signatures
+  ---
+  duration_ms: 5.14825
+  ...
+# {"event":"request","correlationId":"0dc1ce93-3be6-4bc7-a606-ab8854cf329e","method":"POST","route":"/:provider/events","status":400,"durationMs":2}
+# Subtest: signed logistics webhooks validate canonical payloads before database access
+ok 11 - signed logistics webhooks validate canonical payloads before database access
+  ---
+  duration_ms: 5.450167
+  ...
+# {"event":"request","correlationId":"4911b3a6-880a-4d1a-9ec3-f28c7d0d9581","method":"GET","route":"/shipments/:id","status":200,"durationMs":2}
+# {"event":"request","correlationId":"973ce486-67bf-4e89-990e-a15a526fd3cd","method":"GET","route":"/shipments","status":200,"durationMs":3}
+# {"event":"request","correlationId":"11fcf1dc-db80-46c4-8e29-b6b26caae8a4","method":"GET","route":"/orders","status":200,"durationMs":2}
+# {"event":"request","correlationId":"b56ced5b-1b8a-4574-a30f-d9df2c5dc337","method":"GET","route":"/shipments/:id/events","status":200,"durationMs":2}
+# {"event":"request","correlationId":"4242afd1-c8cc-42ac-9e53-ed3bb477c4e6","method":"GET","route":"/orders/:id","status":200,"durationMs":1}
+# {"event":"request","correlationId":"062a8320-eac1-4ef6-a473-6a12febaa38d","method":"GET","route":"/reports/access","status":200,"durationMs":1}
+# {"event":"request","correlationId":"818c5050-5b5f-4e12-9ca8-f7741edf8ff0","method":"GET","route":"/shipments/:id","status":200,"durationMs":1}
+# {"event":"request","correlationId":"aca4a93c-6d26-4852-b461-d213829c5abe","method":"GET","route":"/shipments","status":200,"durationMs":2}
+# {"event":"request","correlationId":"6b0b410f-bbba-492b-84b2-2f59b80c96a2","method":"GET","route":"/orders","status":200,"durationMs":2}
+# {"event":"request","correlationId":"4e5f1452-a23b-426a-af60-3c72db19c4c4","method":"GET","route":"/shipments/:id/events","status":200,"durationMs":1}
+# {"event":"request","correlationId":"c262753c-d5c2-4f6f-90ca-286767b942d9","method":"GET","route":"/orders/:id","status":200,"durationMs":1}
+# {"event":"request","correlationId":"8c189ffb-6818-431a-934e-9b958d11f29c","method":"GET","route":"/reports/access","status":403,"durationMs":1}
+# {"event":"request","correlationId":"fba9a714-9617-4297-ac9d-cfa04d1182e1","method":"GET","route":"/shipments/export/report","status":403,"durationMs":0}
+# {"event":"request","correlationId":"e0bc18fd-c6c5-49f8-b952-b184aa273726","method":"GET","route":"/orders/export/report","status":403,"durationMs":0}
+# {"event":"request","correlationId":"54841b19-5074-4dc4-a54b-e4f93cb64d0d","method":"GET","route":"/shipments/:id","status":200,"durationMs":0}
+# {"event":"request","correlationId":"d1bc0ae8-5c82-4c3c-aa5c-861c44ea153e","method":"GET","route":"/shipments","status":200,"durationMs":1}
+# {"event":"request","correlationId":"dadf455c-3db9-404e-8d9e-d99b30217405","method":"GET","route":"/orders","status":200,"durationMs":1}
+# {"event":"request","correlationId":"b24c6cff-e84b-4cf9-8afb-4952e79a2abe","method":"GET","route":"/shipments/:id/events","status":200,"durationMs":1}
+# {"event":"request","correlationId":"b87ce7f4-90e7-4d56-982e-7216475e8b41","method":"GET","route":"/orders/:id","status":200,"durationMs":0}
+# {"event":"request","correlationId":"8bd8d812-ef3e-440e-bf65-9ac5d089d652","method":"GET","route":"/reports/access","status":200,"durationMs":1}
+# {"event":"request","correlationId":"e01742b0-b6c3-41ac-a609-6f0d11a71c4b","method":"GET","route":"/shipments/:id","status":200,"durationMs":1}
+# {"event":"request","correlationId":"6994f3a4-5de6-454c-bfbc-1c6687e83088","method":"GET","route":"/shipments","status":200,"durationMs":1}
+# {"event":"request","correlationId":"1fdaab36-0e27-4cb6-8c87-065b32dad7b8","method":"GET","route":"/orders","status":403,"durationMs":1}
+# {"event":"request","correlationId":"8ef5aed1-b8ea-4231-988d-f77f8030c90e","method":"GET","route":"/shipments/:id/events","status":200,"durationMs":1}
+# {"event":"request","correlationId":"d575dc09-755a-4741-b67c-9f81cc0bf8b3","method":"GET","route":"/orders/:id","status":403,"durationMs":0}
+# {"event":"request","correlationId":"132cc781-232d-4ab0-9ef0-208add6405dc","method":"GET","route":"/reports/access","status":403,"durationMs":0}
+# {"event":"request","correlationId":"899862a1-0ad7-49e8-baf7-c0aa571b24f9","method":"GET","route":"/shipments/export/report","status":403,"durationMs":0}
+# {"event":"request","correlationId":"6845555a-9bb4-4f19-8313-1d068bec5599","method":"GET","route":"/orders/export/report","status":403,"durationMs":0}
+# {"event":"request","correlationId":"1922b32e-4567-4e79-9734-3cb3d577f84f","method":"GET","route":"/shipments","status":401,"durationMs":0}
+# {"event":"request","correlationId":"1c221721-c9fb-40f4-9654-fc8b2df523b7","method":"GET","route":"/orders","status":401,"durationMs":0}
+# {"event":"request","correlationId":"9eb2b41a-f53e-48b3-a1d7-7a6474fe7941","method":"GET","route":"/shipments/:id","status":401,"durationMs":0}
+# {"event":"request","correlationId":"9098b922-4c5b-4413-937b-82c09b5f3f39","method":"GET","route":"/shipments/:id/events","status":401,"durationMs":0}
+# {"event":"request","correlationId":"972ae280-3618-4c5d-b2bc-aea860ba1f43","method":"GET","route":"/orders/:id","status":401,"durationMs":0}
+# {"event":"request","correlationId":"a12e65f9-8d6e-4f0b-808b-b4dd85840ce3","method":"GET","route":"/reports/access","status":401,"durationMs":0}
+# {"event":"request","correlationId":"4a828869-11aa-4a14-8388-3eb6ead3b971","method":"GET","route":"/shipments/:id","status":400,"durationMs":0}
+# {"event":"request","correlationId":"0c8d0e7d-7b65-4800-b083-795dddbc6d3e","method":"GET","route":"/orders/:id","status":400,"durationMs":0}
+# {"event":"request","correlationId":"8eb12102-42a3-4ce3-8fae-ca0b87c695bc","method":"GET","route":"/shipments","status":400,"durationMs":1}
+# {"event":"request","correlationId":"d1490223-3de2-45d0-a49e-d3a418352ba9","method":"GET","route":"/shipments/:id","status":404,"durationMs":1}
+# {"event":"request","correlationId":"499d6a63-7d33-41ee-8252-b596ccdcc5e2","method":"GET","route":"/shipments/:id/events","status":404,"durationMs":1}
+# {"event":"request","correlationId":"ecd2d887-6c2c-4516-91d6-04eb3ed0884e","method":"GET","route":"/shipments/:id","status":200,"durationMs":0}
+# {"event":"request","correlationId":"75e6ba76-f897-405c-8300-f5c30837799d","method":"GET","route":"/shipments","status":200,"durationMs":1}
+# {"event":"request","correlationId":"b7c80a87-937e-4770-87de-bc0a41f3b55e","method":"GET","route":"/shipments/:id/events","status":200,"durationMs":0}
+# {"event":"request","correlationId":"0bd8ce7e-739d-4e76-ab01-5482ac139ff7","method":"GET","route":"/shipments","status":200,"durationMs":0}
+# {"event":"request","correlationId":"6a4e8cc8-9b04-4292-b30b-546c3c2effe9","method":"GET","route":"/shipments","status":503,"durationMs":0}
+# Subtest: bounded operational reads preserve permissions, identities and event provenance
+ok 12 - bounded operational reads preserve permissions, identities and event provenance
+  ---
+  duration_ms: 83.903791
+  ...
+# Subtest: legacy UTC timestamp decoder is independent of the process timezone
+ok 13 - legacy UTC timestamp decoder is independent of the process timezone
+  ---
+  duration_ms: 4.441667
+  ...
+# Subtest: new password hashes distinguish 128-character inputs sharing the first 72 bytes
+ok 14 - new password hashes distinguish 128-character inputs sharing the first 72 bytes
+  ---
+  duration_ms: 80.124833
+  ...
+1..14
+# tests 14
+# suites 0
+# pass 14
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 834.672959

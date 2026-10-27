@@ -1,0 +1,4 @@
+broken SQL: rejected by real PostgreSQL/HTTP assertion
+lost cookie: rejected by real PostgreSQL/HTTP assertion
+missing workspace predicate: rejected by real PostgreSQL/HTTP assertion
+wrong emitted reset route: rejected by real PostgreSQL/HTTP assertion

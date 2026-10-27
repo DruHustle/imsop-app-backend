@@ -18,7 +18,7 @@ namespace IMSOP.SupplyChainService.Data.Migrations
 #pragma warning disable 612, 618
             modelBuilder
                 .HasDefaultSchema("supply_chain")
-                .HasAnnotation("ProductVersion", "8.0.0")
+                .HasAnnotation("ProductVersion", "8.0.11")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -59,6 +59,46 @@ namespace IMSOP.SupplyChainService.Data.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("inventories", "supply_chain");
+                });
+
+            modelBuilder.Entity("IMSOP.SupplyChainService.Entities.OrderOutbox", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<int>("Attempts")
+                        .HasColumnType("integer")
+                        .HasColumnName("attempts");
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("body");
+
+                    b.Property<DateTime?>("LeaseUntil")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("lease_until");
+
+                    b.Property<DateTime>("NextAttemptAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("next_attempt_at");
+
+                    b.Property<Guid>("OrderId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("order_id");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("state");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrderId");
+
+                    b.ToTable("order_outbox", "supply_chain");
                 });
 
             modelBuilder.Entity("IMSOP.SupplyChainService.Entities.Organization", b =>
@@ -167,6 +207,20 @@ namespace IMSOP.SupplyChainService.Data.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
+                    b.Property<string>("Currency")
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)")
+                        .HasColumnName("currency");
+
+                    b.Property<string>("DispatchState")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("dispatch_state");
+
+                    b.Property<string>("IdempotencyKey")
+                        .HasColumnType("text")
+                        .HasColumnName("idempotency_key");
+
                     b.Property<string>("OrderNumber")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -176,6 +230,10 @@ namespace IMSOP.SupplyChainService.Data.Migrations
                     b.Property<Guid>("OrganizationId")
                         .HasColumnType("uuid")
                         .HasColumnName("organization_id");
+
+                    b.Property<string>("RequestHash")
+                        .HasColumnType("text")
+                        .HasColumnName("request_hash");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -192,6 +250,9 @@ namespace IMSOP.SupplyChainService.Data.Migrations
                         .HasColumnName("total_amount");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("OrganizationId", "IdempotencyKey")
+                        .IsUnique();
 
                     b.ToTable("purchase_orders", "supply_chain");
                 });
@@ -215,11 +276,19 @@ namespace IMSOP.SupplyChainService.Data.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("quantity");
 
+                    b.Property<int>("ReceivedQuantity")
+                        .HasColumnType("integer")
+                        .HasColumnName("received_quantity");
+
                     b.Property<decimal>("UnitPrice")
                         .HasColumnType("numeric")
                         .HasColumnName("unit_price");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ProductId");
+
+                    b.HasIndex("PurchaseOrderId");
 
                     b.ToTable("purchase_order_items", "supply_chain");
                 });
@@ -326,6 +395,32 @@ namespace IMSOP.SupplyChainService.Data.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("warehouses", "supply_chain");
+                });
+
+            modelBuilder.Entity("IMSOP.SupplyChainService.Entities.OrderOutbox", b =>
+                {
+                    b.HasOne("IMSOP.SupplyChainService.Entities.PurchaseOrder", null)
+                        .WithMany()
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("IMSOP.SupplyChainService.Entities.PurchaseOrderItem", b =>
+                {
+                    b.HasOne("IMSOP.SupplyChainService.Entities.Product", null)
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("purchase_item_product_fk");
+
+                    b.HasOne("IMSOP.SupplyChainService.Entities.PurchaseOrder", null)
+                        .WithMany()
+                        .HasForeignKey("PurchaseOrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("purchase_item_order_fk");
                 });
 #pragma warning restore 612, 618
         }

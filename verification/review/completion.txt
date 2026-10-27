@@ -1,0 +1,40 @@
+TAP version 13
+# Subtest: purchase items, exact decimals, tenant validation, retry and receiving update stock atomically once
+ok 1 - purchase items, exact decimals, tenant validation, retry and receiving update stock atomically once
+  ---
+  duration_ms: 719.842708
+  ...
+# Subtest: review email is explicitly opted in, transactional, scoped, cancellable and accepted only by the SMTP sink
+ok 2 - review email is explicitly opted in, transactional, scoped, cancellable and accepted only by the SMTP sink
+  ---
+  duration_ms: 8351.539542
+  ...
+# Subtest: forecast requests require source observations and preserve workspace, horizon, units and provider evidence
+ok 3 - forecast requests require source observations and preserve workspace, horizon, units and provider evidence
+  ---
+  duration_ms: 108.024167
+  ...
+# Subtest: a reset worker crash on its final lease becomes a failed row with erased credential material
+ok 4 - a reset worker crash on its final lease becomes a failed row with erased credential material
+  ---
+  duration_ms: 4887.680834
+  ...
+# Subtest: reviewed ownership provisioning defaults to dry-run and refuses cross-workspace reassignment atomically
+ok 5 - reviewed ownership provisioning defaults to dry-run and refuses cross-workspace reassignment atomically
+  ---
+  duration_ms: 123.267417
+  ...
+# Subtest: ownership inventory uses a read-only snapshot, preserves IDs and leaves every proposed assignment blank
+ok 6 - ownership inventory uses a read-only snapshot, preserves IDs and leaves every proposed assignment blank
+  ---
+  duration_ms: 94.141458
+  ...
+1..6
+# tests 6
+# suites 0
+# pass 6
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 14430.447

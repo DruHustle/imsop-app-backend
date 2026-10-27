@@ -1,0 +1,20 @@
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+  IMSOP.Common -> /src/src/IMSOP.Common/bin/Release/net8.0/IMSOP.Common.dll
+  IMSOP.OperationsService -> /src/src/IMSOP.OperationsService/bin/Release/net8.0/IMSOP.OperationsService.dll
+  IMSOP.Gateway -> /src/src/IMSOP.Gateway/bin/Release/net8.0/IMSOP.Gateway.dll
+  IMSOP.SupplyChainService -> /src/src/IMSOP.SupplyChainService/bin/Release/net8.0/IMSOP.SupplyChainService.dll
+  IMSOP.SupplyChainService.Tests -> /src/src/IMSOP.SupplyChainService.Tests/bin/Release/net8.0/IMSOP.SupplyChainService.Tests.dll
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:07.90
+Test run for /src/src/IMSOP.SupplyChainService.Tests/bin/Release/net8.0/IMSOP.SupplyChainService.Tests.dll (.NETCoreApp,Version=v8.0)
+VSTest version 17.11.1 (arm64)
+
+Starting test execution, please wait...
+A total of 1 test files matched the specified pattern.
+
+Passed!  - Failed:     0, Passed:     4, Skipped:     0, Total:     4, Duration: 8 ms - IMSOP.SupplyChainService.Tests.dll (net8.0)

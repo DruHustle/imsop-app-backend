@@ -1,0 +1,16 @@
+{
+  "environment": "isolated ARM64 bundle",
+  "expectedRevision": "d2e78b391d5772e3b8ac2b8d919e8aabb40b3012",
+  "observedVersion": {
+    "revision": "d2e78b391d5772e3b8ac2b8d919e8aabb40b3012",
+    "apiContract": 2,
+    "nodeSchema": "003_projection_provenance.sql",
+    "supplyChainSchema": "202610270001_DurableOrders"
+  },
+  "readiness": 200,
+  "authenticatedDotnetRead": 200,
+  "anonymousSession": 401,
+  "correlationId": "imsop-trace-20261027-1793062912544",
+  "observedAt": "2026-10-27T01:01:53.594Z",
+  "productionDeployment": false
+}

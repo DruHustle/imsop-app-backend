@@ -1,0 +1,138 @@
+#0 building with "desktop-linux" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 3.20kB done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for mcr.microsoft.com/dotnet/sdk:8.0
+#2 DONE 0.0s
+
+#3 [internal] load metadata for docker.io/library/node:22-bookworm-slim
+#3 DONE 0.0s
+
+#4 [internal] load metadata for mcr.microsoft.com/dotnet/aspnet:8.0
+#4 DONE 0.2s
+
+#5 [internal] load .dockerignore
+#5 transferring context: 338B done
+#5 DONE 0.0s
+
+#6 [runtime  1/14] FROM mcr.microsoft.com/dotnet/aspnet:8.0@sha256:63a1e42746a20795273c219f1577a8826644f12f67d829e818d8ccec92915493
+#6 resolve mcr.microsoft.com/dotnet/aspnet:8.0@sha256:63a1e42746a20795273c219f1577a8826644f12f67d829e818d8ccec92915493 0.0s done
+#6 DONE 0.0s
+
+#7 [node-build 1/8] FROM docker.io/library/node:22-bookworm-slim@sha256:de170b39439eb0e5a3444ad7d60b015614a381e10fecae2e30ec9e735122f38d
+#7 resolve docker.io/library/node:22-bookworm-slim@sha256:de170b39439eb0e5a3444ad7d60b015614a381e10fecae2e30ec9e735122f38d 0.0s done
+#7 DONE 0.0s
+
+#8 [dotnet-build  1/11] FROM mcr.microsoft.com/dotnet/sdk:8.0@sha256:78235e09001f52b6592c458ac010775ebac6725422e80cd0c1650590f67b2743
+#8 resolve mcr.microsoft.com/dotnet/sdk:8.0@sha256:78235e09001f52b6592c458ac010775ebac6725422e80cd0c1650590f67b2743 0.0s done
+#8 DONE 0.0s
+
+#9 [internal] load build context
+#9 transferring context: 5.88kB 0.0s done
+#9 DONE 0.1s
+
+#10 [dotnet-build  9/11] RUN dotnet restore src/IMSOP.sln
+#10 CACHED
+
+#11 [runtime 11/14] COPY --from=node-build --chown=app:app /src/server/migrations ./node-api/migrations
+#11 CACHED
+
+#12 [node-build 8/8] RUN pnpm build && pnpm prune --prod
+#12 CACHED
+
+#13 [runtime  3/14] COPY --from=node-build /usr/local/bin/node /usr/local/bin/node
+#13 CACHED
+
+#14 [runtime  2/14] RUN apt-get update     && apt-get install -y --no-install-recommends ca-certificates curl supervisor     && rm -rf /var/lib/apt/lists/*
+#14 CACHED
+
+#15 [node-build 3/8] RUN corepack enable
+#15 CACHED
+
+#16 [node-build 2/8] WORKDIR /src/server
+#16 CACHED
+
+#17 [dotnet-build 10/11] COPY src ./src
+#17 CACHED
+
+#18 [node-build 7/8] COPY server/migrations ./migrations
+#18 CACHED
+
+#19 [dotnet-build  4/11] COPY src/IMSOP.Common/IMSOP.Common.csproj ./src/IMSOP.Common/
+#19 CACHED
+
+#20 [node-build 4/8] COPY server/package.json server/pnpm-lock.yaml server/.npmrc server/tsconfig.json server/drizzle.config.ts ./
+#20 CACHED
+
+#21 [dotnet-build  6/11] COPY src/IMSOP.OperationsService/IMSOP.OperationsService.csproj ./src/IMSOP.OperationsService/
+#21 CACHED
+
+#22 [dotnet-build 11/11] RUN dotnet publish src/IMSOP.Gateway/IMSOP.Gateway.csproj --no-restore -c Release -o /publish/gateway /p:UseAppHost=false     && dotnet publish src/IMSOP.OperationsService/IMSOP.OperationsService.csproj --no-restore -c Release -o /publish/operations /p:UseAppHost=false     && dotnet publish src/IMSOP.SupplyChainService/IMSOP.SupplyChainService.csproj --no-restore -c Release -o /publish/supply-chain /p:UseAppHost=false
+#22 CACHED
+
+#23 [dotnet-build  8/11] COPY src/IMSOP.SupplyChainService.Tests/IMSOP.SupplyChainService.Tests.csproj ./src/IMSOP.SupplyChainService.Tests/
+#23 CACHED
+
+#24 [runtime 12/14] COPY --chown=app:app deploy/oracle/supervisord.conf /app/supervisord.conf
+#24 CACHED
+
+#25 [runtime  4/14] WORKDIR /app
+#25 CACHED
+
+#26 [runtime 10/14] COPY --from=node-build --chown=app:app /src/server/dist ./node-api/dist
+#26 CACHED
+
+#27 [dotnet-build  3/11] COPY src/IMSOP.sln ./src/IMSOP.sln
+#27 CACHED
+
+#28 [runtime  7/14] COPY --from=dotnet-build --chown=app:app /publish/supply-chain ./supply-chain
+#28 CACHED
+
+#29 [dotnet-build  2/11] WORKDIR /src
+#29 CACHED
+
+#30 [runtime 13/14] COPY --chown=app:app deploy/oracle/entrypoint.sh /app/entrypoint
+#30 CACHED
+
+#31 [dotnet-build  7/11] COPY src/IMSOP.SupplyChainService/IMSOP.SupplyChainService.csproj ./src/IMSOP.SupplyChainService/
+#31 CACHED
+
+#32 [runtime  9/14] COPY --from=node-build --chown=app:app /src/server/node_modules ./node-api/node_modules
+#32 CACHED
+
+#33 [runtime  6/14] COPY --from=dotnet-build --chown=app:app /publish/operations ./operations
+#33 CACHED
+
+#34 [node-build 5/8] RUN pnpm install --frozen-lockfile
+#34 CACHED
+
+#35 [runtime  5/14] COPY --from=dotnet-build --chown=app:app /publish/gateway ./gateway
+#35 CACHED
+
+#36 [dotnet-build  5/11] COPY src/IMSOP.Gateway/IMSOP.Gateway.csproj ./src/IMSOP.Gateway/
+#36 CACHED
+
+#37 [runtime  8/14] COPY --from=node-build --chown=app:app /src/server/package.json ./node-api/package.json
+#37 CACHED
+
+#38 [node-build 6/8] COPY server/src ./src
+#38 CACHED
+
+#39 [runtime 14/14] RUN chmod 0555 /app/entrypoint
+#39 CACHED
+
+#40 exporting to image
+#40 exporting layers done
+#40 exporting manifest sha256:d30d3d56bca4bc6e98cfd524e7b6a27e2b344959d133f3f3bd9c89d3e399c655 0.0s done
+#40 exporting config sha256:7a8fd14dd151399375920f80175e65ef65bb1e443b3f7d8fd2df8284f6eb1ffe 0.0s done
+#40 exporting attestation manifest sha256:283d9b6dca7a039cbd3b6e1949fe0d3f692f22a8f992722ee98715a6104fc923
+#40 exporting attestation manifest sha256:283d9b6dca7a039cbd3b6e1949fe0d3f692f22a8f992722ee98715a6104fc923 0.0s done
+#40 exporting manifest list sha256:b1a4a2544c9c74d95a8497009ef08b24fbf095b0cde7c66c3ce47ea91a4d6c88 0.0s done
+#40 naming to docker.io/library/imsop-remediation:qualification done
+#40 unpacking to docker.io/library/imsop-remediation:qualification done
+#40 DONE 0.1s
+
+#41 resolving provenance for metadata file
+#41 DONE 0.1s

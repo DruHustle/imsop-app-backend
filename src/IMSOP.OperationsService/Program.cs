@@ -1,9 +1,13 @@
+using IMSOP.Common;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Logging.ClearProviders();
+builder.Logging.AddJsonConsole();
+builder.Logging.AddFilter("Microsoft.EntityFrameworkCore.Database.Command", LogLevel.Warning);
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -22,27 +26,18 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJw
     };
     options.Events = new JwtBearerEvents
     {
+        OnTokenValidated = SessionBoundary.Validate,
+        OnChallenge = SessionBoundary.Challenge,
         OnMessageReceived = context =>
         {
-            if (string.IsNullOrEmpty(context.Token)) context.Token = context.Request.Cookies["imsop_access"];
+            if (!context.Request.Headers.ContainsKey("Authorization")) context.Token = context.Request.Cookies["imsop_access"];
             return Task.CompletedTask;
         }
     };
 });
 builder.Services.AddAuthorization(options => options.FallbackPolicy = new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build());
 
-var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
-    ?? builder.Configuration["CORS_ALLOWED_ORIGINS"]?
-        .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-    ??
-    [
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost:4200",
-        "http://127.0.0.1:4200"
-    ];
+var allowedOrigins = SessionBoundary.ResolveAllowedOrigins(builder.Configuration, !builder.Environment.IsDevelopment());
 
 builder.Services.AddCors(options =>
 {
@@ -55,13 +50,16 @@ builder.Services.AddCors(options =>
     });
 });
 
+builder.Services.AddHttpClient("session-boundary", client => client.Timeout = TimeSpan.FromSeconds(3));
 var app = builder.Build();
+app.UseImsopBoundary(allowedOrigins);
 
 app.UseCors("Frontend");
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapGet("/health", () => Results.Ok(new { status = "ok", service = "IMSOP.OperationsService" })).AllowAnonymous();
+app.MapGet("/version", () => Results.Ok(ReleaseIdentity.Current)).AllowAnonymous();
+app.MapGet("/health", () => Results.Ok(new { status = "ok", release = ReleaseIdentity.Current, service = "IMSOP.OperationsService" })).AllowAnonymous();
 app.MapControllers();
 
 app.Run();

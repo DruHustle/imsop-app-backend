@@ -1,0 +1,11 @@
+users: source=25 restored=25
+shipments: source=630 restored=630
+logistics_events: source=12 restored=12
+review_cases: source=2 restored=2
+review_actions: source=4 restored=4
+auth_sessions: source=24 restored=24
+supply_chain.purchase_orders: source=1 restored=1
+supply_chain.order_outbox: source=1 restored=1
+Restored snapshot point: 2026-10-26 14:50:22.537716-10
+Disposable destination: imsop_test_restore_1793062221
+Recovery elapsed seconds: 22

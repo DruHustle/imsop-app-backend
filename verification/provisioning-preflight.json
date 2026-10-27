@@ -1,0 +1,12 @@
+{
+  "generatedAt": "2026-10-27T01:06:16.343Z",
+  "unassigned": {
+    "shipments": 0,
+    "orders": 0,
+    "telemetry": 0,
+    "logistics_events": 0
+  },
+  "legacyTimestampPolicy": "Historical UTC wall time retained without conversion",
+  "unprovisionedUsers": 10,
+  "ambiguousProviderTracking": 1
+}

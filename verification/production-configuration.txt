@@ -1,0 +1,1 @@
+Production configuration: valid fixture accepted; all 7 missing required settings rejected. No API listener, database or mail transport was started.
