@@ -16,7 +16,7 @@ public class BoundaryConfigurationTests
  [Fact]
  public void FirstPartyProductionOriginIsExplicitAndNormalizedAcrossServices()
  {
-  var config=new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string,string?>{{"ALLOWED_ORIGIN","https://imsop.test/"}}).Build();
+  var config=new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string,string?>{{"ALLOWED_ORIGIN","https://imsop.test/"},{"Cors:AllowedOrigins:0","http://localhost:5173"}}).Build();
   Assert.Equal(new[]{"https://imsop.test"},SessionBoundary.ResolveAllowedOrigins(config,true));
   var invalid=new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string,string?>{{"CORS_ALLOWED_ORIGINS","https://imsop.test/private"}}).Build();
   Assert.Throws<InvalidOperationException>(()=>SessionBoundary.ResolveAllowedOrigins(invalid,true));
