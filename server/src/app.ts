@@ -1,81 +1,147 @@
-import express from 'express';
-import cors from 'cors';
-import authRoutes from './routes/authRoutes';
-import operationsRoutes from './routes/operationsRoutes';
-import telemetryRoutes from './routes/telemetryRoutes';
-import { rateLimit } from './middleware/rateLimit';
-import logisticsIntegrationRoutes from './routes/logisticsIntegrationRoutes';
-import { db } from './config/db';
-import { sql } from 'drizzle-orm';
-import { getAllowedOrigins } from './config/security';
+import express from "express";
+import cors from "cors";
+import authRoutes from "./routes/authRoutes";
+import operationsRoutes from "./routes/operationsRoutes";
+import telemetryRoutes from "./routes/telemetryRoutes";
+import { rateLimit } from "./middleware/rateLimit";
+import logisticsIntegrationRoutes from "./routes/logisticsIntegrationRoutes";
+import { db } from "./config/db";
+import { sql } from "drizzle-orm";
+import { getAllowedOrigins } from "./config/security";
 
-import { release } from './release';
-import { randomUUID } from 'node:crypto';
+import { release } from "./release";
+import { randomUUID } from "node:crypto";
 const app = express();
-app.use((req,res,next)=>{
- const candidate=req.header('x-request-id')||'';const id=/^[a-zA-Z0-9-]{8,64}$/.test(candidate)?candidate:randomUUID();
- req.headers['x-request-id']=id;res.setHeader('X-Request-ID',id);
- const started=performance.now();res.on('finish',()=>console.log(JSON.stringify({event:'request',correlationId:id,method:req.method,route:req.route?.path||'unmatched',status:res.statusCode,durationMs:Math.round(performance.now()-started)})));next();
+app.use((req, res, next) => {
+  const candidate = req.header("x-request-id") || "";
+  const id = /^[a-zA-Z0-9-]{8,64}$/.test(candidate) ? candidate : randomUUID();
+  req.headers["x-request-id"] = id;
+  res.setHeader("X-Request-ID", id);
+  const started = performance.now();
+  res.on("finish", () =>
+    console.log(
+      JSON.stringify({
+        event: "request",
+        correlationId: id,
+        method: req.method,
+        route: req.route?.path || "unmatched",
+        status: res.statusCode,
+        durationMs: Math.round(performance.now() - started),
+      }),
+    ),
+  );
+  next();
 });
 
-app.disable('x-powered-by');
-app.set('trust proxy', 1);
+app.disable("x-powered-by");
+app.set("trust proxy", 1);
 
-app.use(cors({
-  origin: getAllowedOrigins(),
-  credentials: true,
-}));
+app.use(
+  cors({
+    origin: getAllowedOrigins(),
+    credentials: true,
+  }),
+);
 app.use((_req, res, next) => {
-  res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.setHeader('X-Frame-Options', 'DENY');
-  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(self)');
-  res.setHeader('Content-Security-Policy', "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'");
-  if (process.env.NODE_ENV === 'production') {
-    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.setHeader(
+    "Permissions-Policy",
+    "camera=(), microphone=(), geolocation=(self)",
+  );
+  res.setHeader(
+    "Content-Security-Policy",
+    "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
+  );
+  if (process.env.NODE_ENV === "production") {
+    res.setHeader(
+      "Strict-Transport-Security",
+      "max-age=31536000; includeSubDomains",
+    );
   }
   next();
 });
-app.use(express.json({
-  limit: '100kb',
-  verify: (req, _res, buffer) => { (req as express.Request).rawBody = Buffer.from(buffer); },
-}));
-app.use('/api', rateLimit(60_000, 120));
-app.use('/api', (req, res, next) => {
-  const usesCookie = /(?:^|;\s*)imsop_access=/.test(req.headers.cookie || '');
-  if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method) && usesCookie && !req.headers.authorization) {
-    if (!req.headers.origin || !getAllowedOrigins().includes(req.headers.origin)) {
-      return res.status(403).json({ error: 'Cross-site session request blocked' });
+app.use(
+  express.json({
+    limit: "100kb",
+    verify: (req, _res, buffer) => {
+      (req as express.Request).rawBody = Buffer.from(buffer);
+    },
+  }),
+);
+app.use("/api", rateLimit(60_000, 120));
+app.use("/api", (req, res, next) => {
+  const usesCookie = /(?:^|;\s*)imsop_access=/.test(req.headers.cookie || "");
+  if (
+    !["GET", "HEAD", "OPTIONS"].includes(req.method) &&
+    usesCookie &&
+    !req.headers.authorization
+  ) {
+    if (
+      !req.headers.origin ||
+      !getAllowedOrigins().includes(req.headers.origin)
+    ) {
+      return res
+        .status(403)
+        .json({ error: "Cross-site session request blocked" });
     }
   }
   next();
 });
 
-app.use('/api/auth', authRoutes);
-app.use('/api/operations', operationsRoutes);
-app.use('/api/telemetry', telemetryRoutes);
-app.use('/api/integrations/logistics', logisticsIntegrationRoutes);
+app.use("/api/auth", authRoutes);
+app.use("/api/operations", operationsRoutes);
+app.use("/api/telemetry", telemetryRoutes);
+app.use("/api/integrations/logistics", logisticsIntegrationRoutes);
 
-app.get('/version',(_req,res)=>res.json(release));
-app.get('/health', (_req, res) => {
-  res.json({ status: 'ok', ...release });
+app.get("/version", (_req, res) => res.json(release));
+app.get("/health", (_req, res) => {
+  res.json({ status: "ok", ...release });
 });
-app.get('/ready', async (_req, res) => {
+app.get("/ready", async (_req, res) => {
   try {
-    const ledger=await db.execute(sql`SELECT name FROM schema_migrations WHERE name=${release.nodeSchema} AND checksum IS NOT NULL`);
-    if(!ledger.rowCount) return res.status(503).json({status:'schema_not_ready',...release});
-    res.json({ status: 'ready', ...release });
+    const ledger = await db.execute(
+      sql`SELECT name FROM schema_migrations WHERE name=${release.nodeSchema} AND checksum IS NOT NULL`,
+    );
+    if (!ledger.rowCount)
+      return res.status(503).json({ status: "schema_not_ready", ...release });
+    res.json({ status: "ready", ...release });
   } catch {
-    res.status(503).json({ status: 'not_ready' });
+    res.status(503).json({ status: "not_ready" });
   }
 });
 
-app.use((_req, res) => res.status(404).json({ error: 'Not found' }));
-app.use((error: Error & { status?: number }, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  if (res.headersSent) return _next(error);
-  const status = error.status === 400 || error.status === 413 ? error.status : 500;
-  if (status === 500) console.error(JSON.stringify({event:'request_failed',name:error.name,correlationId:_req.header('x-request-id')}));
-  res.status(status).json({ error: status === 400 ? 'Invalid JSON body' : status === 413 ? 'Request body too large' : 'Internal server error' });
-});
+app.use((_req, res) => res.status(404).json({ error: "Not found" }));
+app.use(
+  (
+    error: Error & { status?: number },
+    _req: express.Request,
+    res: express.Response,
+    _next: express.NextFunction,
+  ) => {
+    if (res.headersSent) return _next(error);
+    const status =
+      error.status === 400 || error.status === 413 ? error.status : 500;
+    if (status === 500)
+      console.error(
+        JSON.stringify({
+          event: "request_failed",
+          name: error.name,
+          correlationId: _req.header("x-request-id"),
+        }),
+      );
+    res
+      .status(status)
+      .json({
+        error:
+          status === 400
+            ? "Invalid JSON body"
+            : status === 413
+              ? "Request body too large"
+              : "Internal server error",
+      });
+  },
+);
 
 export default app;

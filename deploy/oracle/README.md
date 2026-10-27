@@ -49,3 +49,13 @@ Render service stays suspended with automatic deployment disabled. Retain the
 previous image and manifest; restore its tag and run the same Compose update
 command to roll back. An emergency Render rollback requires explicitly resuming
 and checking that service before restoring the frontend API destination.
+
+## Remediation release verification
+
+The immutable build label and `/version` must agree with the backend SHA in the release manifest. `/health` is liveness; `/ready` now checks required Node migration and service readiness. A historical healthy result is not a revision receipt. Build using an exact committed source and retain the OCI manifest digest from `--metadata-file`; inspect `docker image inspect --format '{{.Architecture}} {{index .Config.Labels "org.opencontainers.image.revision"}}' IMAGE` before transfer.
+
+Recovery requires `RESET_DELIVERY_KEY` (64 hex characters, kept in the existing secret mechanism) in addition to the existing mail and reset-URL settings. Run Node migrations separately with `MIGRATION_DATABASE_URL`; runtime migration is disabled unless `RUN_NODE_MIGRATIONS=true`. Apply the separate .NET EF upgrades under their schema owner, then leave production `Database__AutoMigrate=false`. See [provisioning](../../docs/PROVISIONING.md) before assigning historical rows or restoring internal-user access.
+
+Record installed image digest, mounted manifest identity and observed `/version` after an authorized rollout. Check first-party browser cookies, a permitted source read, a cross-workspace denial and report permissions using approved non-customer test accounts only. Backend compatibility precedes frontend release. Keep all internal ports private; the existing diagnostic mapping remains loopback-only. No provider accounts or customer records are needed for isolated qualification.
+
+Rollback rehearsal uses a previous **compatible scoped** image on the isolated stack, verifies version/readiness, then restores the candidate. Preserve migrations, outbox messages and operational records. An earlier image that exposes unassigned operational rows is not a safe security rollback. A destructive migration reversal is never implied by image rollback.

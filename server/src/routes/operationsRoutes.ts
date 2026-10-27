@@ -11,11 +11,25 @@ import {
   shipmentEvents,
 } from "../controllers/operationalReads";
 
-import { z } from 'zod';
-import { validateBody } from '../middleware/validate';
-import { reviewFeed, reviewHistory, actOnReview, notifications, readNotification, integrationStatus, operators } from '../controllers/reviews';
+import { z } from "zod";
+import { validateBody } from "../middleware/validate";
+import {
+  reviewFeed,
+  reviewHistory,
+  actOnReview,
+  notifications,
+  readNotification,
+  integrationStatus,
+  operators,
+} from "../controllers/reviews";
 const router = Router();
-router.get("/shipments/summary",authenticate,requireWorkspace,authorize(["admin","engineer","analyst","user"]),shipmentSummary);
+router.get(
+  "/shipments/summary",
+  authenticate,
+  requireWorkspace,
+  authorize(["admin", "engineer", "analyst", "user"]),
+  shipmentSummary,
+);
 router.get(
   "/reports/access",
   authenticate,
@@ -74,11 +88,51 @@ router.get(
   recordDetail("orders"),
 );
 
-router.get('/reviews',authenticate,requireWorkspace,reviewFeed);
-router.get('/reviews/operators',authenticate,requireWorkspace,authorize(['admin','engineer']),operators);
-router.get('/reviews/:id/actions',authenticate,requireWorkspace,reviewHistory);
-router.post('/reviews/:id/actions',authenticate,requireWorkspace,authorize(['admin','engineer']),validateBody(z.object({action:z.enum(['acknowledge','assign','note','resolve','reopen']),version:z.number().int().nonnegative(),note:z.string().trim().min(1).max(2000).optional(),assigneeId:z.number().int().positive().nullable().optional()}).strict().refine(v=>v.action!=='note'||!!v.note).refine(v=>v.action!=='assign'||v.assigneeId!==undefined)),actOnReview);
-router.get('/notifications',authenticate,requireWorkspace,notifications);
-router.post('/notifications/:id/read',authenticate,requireWorkspace,readNotification);
-router.get('/integrations',authenticate,requireWorkspace,authorize(['admin','engineer']),integrationStatus);
+router.get("/reviews", authenticate, requireWorkspace, reviewFeed);
+router.get(
+  "/reviews/operators",
+  authenticate,
+  requireWorkspace,
+  authorize(["admin", "engineer"]),
+  operators,
+);
+router.get(
+  "/reviews/:id/actions",
+  authenticate,
+  requireWorkspace,
+  reviewHistory,
+);
+router.post(
+  "/reviews/:id/actions",
+  authenticate,
+  requireWorkspace,
+  authorize(["admin", "engineer"]),
+  validateBody(
+    z
+      .object({
+        action: z.enum(["acknowledge", "assign", "note", "resolve", "reopen"]),
+        version: z.number().int().nonnegative(),
+        note: z.string().trim().min(1).max(2000).optional(),
+        assigneeId: z.number().int().positive().nullable().optional(),
+      })
+      .strict()
+      .refine((v) => v.action !== "note" || !!v.note)
+      .refine((v) => v.action !== "assign" || v.assigneeId !== undefined),
+  ),
+  actOnReview,
+);
+router.get("/notifications", authenticate, requireWorkspace, notifications);
+router.post(
+  "/notifications/:id/read",
+  authenticate,
+  requireWorkspace,
+  readNotification,
+);
+router.get(
+  "/integrations",
+  authenticate,
+  requireWorkspace,
+  authorize(["admin", "engineer"]),
+  integrationStatus,
+);
 export default router;

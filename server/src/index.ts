@@ -1,13 +1,23 @@
-import './config/env';
-import app from './app';
-import { assertProductionConfiguration } from './config/security';
-import { connection } from './config/db';
+import "./config/env";
+import app from "./app";
+import { assertProductionConfiguration } from "./config/security";
+import { connection } from "./config/db";
 
 assertProductionConfiguration();
 
-import { dispatchResetDeliveries } from './services/resetDelivery';
-let dispatching=false;
-const deliveryTimer=setInterval(async()=>{if(dispatching)return;dispatching=true;try{await dispatchResetDeliveries();}catch{console.warn(JSON.stringify({event:'reset_worker_failed'}));}finally{dispatching=false;}},5000);
+import { dispatchResetDeliveries } from "./services/resetDelivery";
+let dispatching = false;
+const deliveryTimer = setInterval(async () => {
+  if (dispatching) return;
+  dispatching = true;
+  try {
+    await dispatchResetDeliveries();
+  } catch {
+    console.warn(JSON.stringify({ event: "reset_worker_failed" }));
+  } finally {
+    dispatching = false;
+  }
+}, 5000);
 deliveryTimer.unref();
 
 const port = process.env.PORT || 3001;
@@ -22,20 +32,20 @@ const shutdown = (signal: string) => {
   shuttingDown = true;
   clearInterval(deliveryTimer);
   console.log(`${signal} received; stopping new connections`);
-  server.close(async error => {
+  server.close(async (error) => {
     if (error) {
-      console.error('Graceful shutdown failed', error);
+      console.error("Graceful shutdown failed", error);
       process.exitCode = 1;
     }
     try {
       await connection.end();
     } catch (poolError) {
-      console.error('Database pool shutdown failed', poolError);
+      console.error("Database pool shutdown failed", poolError);
       process.exitCode = 1;
     }
   });
   setTimeout(() => process.exit(1), 25_000).unref();
 };
 
-process.on('SIGTERM', () => shutdown('SIGTERM'));
-process.on('SIGINT', () => shutdown('SIGINT'));
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGINT", () => shutdown("SIGINT"));
