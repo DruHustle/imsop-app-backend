@@ -242,6 +242,13 @@ test("workspace provisioning separates public registration, lists, details, even
   );
 });
 
+test('unknown-mode filtering cannot escape the workspace predicate',async()=>{
+ const a=randomUUID(),b=randomUUID();await connection.query("INSERT INTO workspaces(id,name) VALUES($1,'Filter A'),($2,'Filter B')",[a,b]);
+ const {cookie}=await account('user',a);
+ await connection.query("INSERT INTO shipments(workspace_id,tracking_number,origin,destination,transport_mode) VALUES($1,'FILTER-A','Start','End',NULL),($2,'FILTER-B','Start','End','legacy-unknown')",[a,b]);
+ const response=await request('/api/operations/shipments?limit=10&mode=Unknown',undefined,cookie);assert.equal(response.status,200);const result=await response.json();assert.equal(result.total,1);assert.equal(result.items[0].trackingNumber,'FILTER-A');
+});
+
 test("provider events reduce deterministically across ordering, sparse fields, duplicate identity and workspace/provider collision", async () => {
   const workspace = randomUUID();
   await connection.query(
