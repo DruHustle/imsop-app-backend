@@ -12,7 +12,7 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
  let claims: jwt.JwtPayload;
  try {
   const decoded=jwt.verify(token,getJwtSecret(),{algorithms:['HS256'],issuer:'imsop-api',audience:'imsop-web'});
-  if(typeof decoded==='string' || !Number.isInteger(decoded.id) || typeof decoded.sid!=='string' || decoded.purpose) throw new Error();
+  if(typeof decoded==='string' || !Number.isInteger(decoded.id) || typeof decoded.sid!=='string' || !/^[a-f0-9-]{36}$/.test(decoded.sid) || decoded.purpose) throw new Error();
   claims=decoded;
  } catch { return res.status(401).json({error:'Your session expired. Sign in again.',code:'SESSION_EXPIRED'}); }
  try {

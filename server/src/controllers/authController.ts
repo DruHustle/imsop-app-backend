@@ -90,14 +90,18 @@ export const requestReset = async (req: Request,res:Response) => {
  } catch { res.status(503).json({error:'Recovery requests are temporarily unavailable. Please retry.'}); }
 };
 export const resetPassword = async (req: Request,res:Response) => {
+ let decoded:jwt.JwtPayload;
  try {
   const d=jwt.verify(req.body.token,getJwtSecret(),{algorithms:['HS256'],issuer:'imsop-api',audience:'imsop-password-reset'});
   if(typeof d==='string' || d.purpose!=='password-reset' || !Number.isInteger(d.id) || !Number.isInteger(d.resetVersion)) throw new Error();
+  decoded=d;
+ } catch { return res.status(400).json({error:'This reset link is invalid, expired or already used. Request a new link.'}); }
+ try {
   const result=await connection.query(`UPDATE users SET password=$1,password_reset_version=password_reset_version+1,session_version=session_version+1
-   WHERE id=$2 AND password_reset_version=$3 AND NOT disabled RETURNING id`,[await bcrypt.hash(req.body.newPassword,12),d.id,d.resetVersion]);
-  if(result.rowCount!==1) throw new Error();
+   WHERE id=$2 AND password_reset_version=$3 AND NOT disabled RETURNING id`,[await bcrypt.hash(req.body.newPassword,12),decoded.id,decoded.resetVersion]);
+  if(result.rowCount!==1)return res.status(400).json({error:'This reset link is invalid, expired or already used. Request a new link.'});
   res.json({success:true,message:'Password reset. Sign in with your new password.'});
- } catch { res.status(400).json({error:'This reset link is invalid, expired or already used. Request a new link.'}); }
+ } catch { res.status(503).json({error:'Recovery is temporarily unavailable. Your link is retained on this page; retry.'}); }
 };
 
 export const updateProfile = async (req: AuthRequest, res: Response) => {
@@ -128,7 +132,7 @@ export const changePassword = async (req: AuthRequest, res: Response) => {
     });
 
     if (!user || !(await bcrypt.compare(currentPassword, user.password))) {
-      return res.status(401).json({ error: 'Invalid current password' });
+      return res.status(400).json({ error: 'Invalid current password' });
     }
 
     const hashedPassword = await bcrypt.hash(newPassword, 12);
