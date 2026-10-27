@@ -1,0 +1,8 @@
+{
+  "candidateManifestDigest": "sha256:38f517cd90370ebbd9570c381aa49cc25224cd2cc2e4e9c783b1835dd82786c2",
+  "candidateSourceRevision": "d2e78b391d5772e3b8ac2b8d919e8aabb40b3012",
+  "rollbackManifestDigest": "sha256:fd414404cf53a2b90a67dae592716489bc0291baf553e69ced520dcbc8f2ac1f",
+  "rollbackSourceRevision": "f8b52e56b16184adfb209f112c99c40bbb482483",
+  "platform": "linux/arm64",
+  "published": false
+}

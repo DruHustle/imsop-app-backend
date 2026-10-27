@@ -1,0 +1,77 @@
+#0 building with "desktop-linux" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 3.20kB done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for mcr.microsoft.com/dotnet/sdk:8.0
+#2 DONE 0.0s
+
+#3 [internal] load .dockerignore
+#3 transferring context: 338B done
+#3 DONE 0.0s
+
+#4 [dotnet-build  1/11] FROM mcr.microsoft.com/dotnet/sdk:8.0@sha256:78235e09001f52b6592c458ac010775ebac6725422e80cd0c1650590f67b2743
+#4 resolve mcr.microsoft.com/dotnet/sdk:8.0@sha256:78235e09001f52b6592c458ac010775ebac6725422e80cd0c1650590f67b2743 done
+#4 DONE 0.0s
+
+#5 [dotnet-build  2/11] WORKDIR /src
+#5 CACHED
+
+#6 [internal] load build context
+#6 transferring context: 6.94kB 0.0s done
+#6 DONE 0.0s
+
+#7 [dotnet-build  3/11] COPY src/IMSOP.sln ./src/IMSOP.sln
+#7 DONE 0.0s
+
+#8 [dotnet-build  4/11] COPY src/IMSOP.Common/IMSOP.Common.csproj ./src/IMSOP.Common/
+#8 DONE 0.0s
+
+#9 [dotnet-build  5/11] COPY src/IMSOP.Gateway/IMSOP.Gateway.csproj ./src/IMSOP.Gateway/
+#9 DONE 0.0s
+
+#10 [dotnet-build  6/11] COPY src/IMSOP.OperationsService/IMSOP.OperationsService.csproj ./src/IMSOP.OperationsService/
+#10 DONE 0.0s
+
+#11 [dotnet-build  7/11] COPY src/IMSOP.SupplyChainService/IMSOP.SupplyChainService.csproj ./src/IMSOP.SupplyChainService/
+#11 DONE 0.0s
+
+#12 [dotnet-build  8/11] COPY src/IMSOP.SupplyChainService.Tests/IMSOP.SupplyChainService.Tests.csproj ./src/IMSOP.SupplyChainService.Tests/
+#12 DONE 0.0s
+
+#13 [dotnet-build  9/11] RUN dotnet restore src/IMSOP.sln
+#13 1.300   Determining projects to restore...
+#13 3.668   Restored /src/src/IMSOP.Common/IMSOP.Common.csproj (in 1.99 sec).
+#13 4.086   Restored /src/src/IMSOP.OperationsService/IMSOP.OperationsService.csproj (in 2.41 sec).
+#13 4.230   Restored /src/src/IMSOP.Gateway/IMSOP.Gateway.csproj (in 2.56 sec).
+#13 8.841   Restored /src/src/IMSOP.SupplyChainService.Tests/IMSOP.SupplyChainService.Tests.csproj (in 7.17 sec).
+#13 8.889   Restored /src/src/IMSOP.SupplyChainService/IMSOP.SupplyChainService.csproj (in 7.21 sec).
+#13 DONE 9.8s
+
+#14 [dotnet-build 10/11] COPY src ./src
+#14 DONE 0.1s
+
+#15 [dotnet-build 11/11] RUN dotnet publish src/IMSOP.Gateway/IMSOP.Gateway.csproj --no-restore -c Release -o /publish/gateway /p:UseAppHost=false     && dotnet publish src/IMSOP.OperationsService/IMSOP.OperationsService.csproj --no-restore -c Release -o /publish/operations /p:UseAppHost=false     && dotnet publish src/IMSOP.SupplyChainService/IMSOP.SupplyChainService.csproj --no-restore -c Release -o /publish/supply-chain /p:UseAppHost=false
+#15 2.874   IMSOP.Common -> /src/src/IMSOP.Common/bin/Release/net8.0/IMSOP.Common.dll
+#15 3.305   IMSOP.Gateway -> /src/src/IMSOP.Gateway/bin/Release/net8.0/IMSOP.Gateway.dll
+#15 3.336   IMSOP.Gateway -> /publish/gateway/
+#15 3.914   IMSOP.Common -> /src/src/IMSOP.Common/bin/Release/net8.0/IMSOP.Common.dll
+#15 4.133   IMSOP.OperationsService -> /src/src/IMSOP.OperationsService/bin/Release/net8.0/IMSOP.OperationsService.dll
+#15 4.164   IMSOP.OperationsService -> /publish/operations/
+#15 4.874   IMSOP.Common -> /src/src/IMSOP.Common/bin/Release/net8.0/IMSOP.Common.dll
+#15 5.382   IMSOP.SupplyChainService -> /src/src/IMSOP.SupplyChainService/bin/Release/net8.0/IMSOP.SupplyChainService.dll
+#15 5.444   IMSOP.SupplyChainService -> /publish/supply-chain/
+#15 DONE 5.5s
+
+#16 exporting to image
+#16 exporting layers
+#16 exporting layers 10.4s done
+#16 exporting manifest sha256:03583babd0d7faeb188030c6b6d6df00a49ead972a910539e9da9da8a16ab849 0.0s done
+#16 exporting config sha256:97695879d137d475ffbd17e5681a82a9caf42709e27640632d81cc17b1d98dd4 0.0s done
+#16 exporting attestation manifest sha256:c4100f9e168e697d15f65b970437d4be1976150ec6aa69bd3658ab38032ceab4 0.0s done
+#16 exporting manifest list sha256:353bf6c3e3357855ab5cb13c9324acfdf6245c3254a5ae1bc90d005b70d9c053 done
+#16 naming to docker.io/library/imsop-remediation:dotnet-build done
+#16 unpacking to docker.io/library/imsop-remediation:dotnet-build
+#16 unpacking to docker.io/library/imsop-remediation:dotnet-build 5.4s done
+#16 DONE 15.9s

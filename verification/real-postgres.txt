@@ -1,0 +1,141 @@
+TAP version 13
+# Subtest: mail builder emits a single hash token and preserves configured query parameters
+ok 1 - mail builder emits a single hash token and preserves configured query parameters
+  ---
+  duration_ms: 47.066791
+  ...
+# {"event":"request","correlationId":"f52f8aec-27a0-44e5-bfd4-bed952775c39","method":"POST","route":"/login","status":200,"durationMs":49}
+# {"event":"request","correlationId":"20c1beaf-6d7c-44ab-ac89-84cd68c5a866","method":"POST","route":"/reset-password","status":200,"durationMs":258}
+# {"event":"request","correlationId":"eb59eabb-fdd9-42b2-add9-a011f0d2caf7","method":"POST","route":"/reset-password","status":400,"durationMs":258}
+# {"event":"request","correlationId":"8539f8c7-21b4-42a0-9cd9-cb0bab736b0f","method":"GET","route":"/me","status":401,"durationMs":13}
+# {"event":"request","correlationId":"34a9afa7-240c-40ed-9bed-696e09eb1312","method":"POST","route":"/reset-password","status":400,"durationMs":66}
+# Subtest: PostgreSQL permits exactly one reset; replay and prior access session are rejected
+ok 2 - PostgreSQL permits exactly one reset; replay and prior access session are rejected
+  ---
+  duration_ms: 499.656458
+  ...
+# {"event":"request","correlationId":"bf4b536e-6b2c-4136-9f7c-2cf987cdb027","method":"POST","route":"/login","status":200,"durationMs":33}
+# {"event":"request","correlationId":"174e57d0-584e-408d-bed6-df2cfe3961d6","method":"GET","route":"/me","status":200,"durationMs":29}
+# {"event":"request","correlationId":"ad9afff6-6ec2-44ff-9d3e-f6fc8f216d75","method":"POST","route":"/logout","status":204,"durationMs":48}
+# {"event":"request","correlationId":"6510c7cc-c4ac-4429-9a70-451e5889bcf6","method":"GET","route":"/me","status":401,"durationMs":23}
+# {"event":"request","correlationId":"cefcb5c8-25c0-4440-9a2c-49e16e278c53","method":"POST","route":"/login","status":200,"durationMs":26}
+# {"event":"request","correlationId":"160f2585-c41b-471a-843f-c46f04d96788","method":"GET","route":"/me","status":200,"durationMs":23}
+# {"event":"request","correlationId":"29e7c5af-5038-4dbb-957d-0ea0970cdfb4","method":"GET","route":"/me","status":401,"durationMs":18}
+# {"event":"request","correlationId":"44d6e564-d6c4-4265-8891-c9ddfdaca032","method":"POST","route":"/login","status":200,"durationMs":58}
+# {"event":"request","correlationId":"8cc42318-307c-4ee7-a15e-75409bb30ec1","method":"GET","route":"/me","status":200,"durationMs":26}
+# {"event":"request","correlationId":"dd1391ea-eead-4044-af2a-cbaa4e3ba2d7","method":"GET","route":"/me","status":401,"durationMs":6}
+# Subtest: logout, disabled accounts and role changes revoke captured cookies
+ok 3 - logout, disabled accounts and role changes revoke captured cookies
+  ---
+  duration_ms: 392.312083
+  ...
+# {"event":"request","correlationId":"28f7c4fa-9de9-40ce-8fde-5634cecf3bd8","method":"POST","route":"/reset-password","status":400,"durationMs":2}
+# {"event":"request","correlationId":"54c3f851-42a8-4fc0-82e6-4a642f61c761","method":"POST","route":"/reset-password","status":400,"durationMs":1}
+# {"event":"request","correlationId":"84481e7b-0e0f-4b39-817d-4bed57d5a4e4","method":"POST","route":"/request-reset","status":202,"durationMs":183}
+# Subtest: short passwords fail before reset and unknown reset requests disclose no token
+ok 4 - short passwords fail before reset and unknown reset requests disclose no token
+  ---
+  duration_ms: 195.304292
+  ...
+# {"event":"request","correlationId":"e4363917-7c2d-4bad-b96e-ef1c6fcccf64","method":"POST","route":"/login","status":200,"durationMs":22}
+# {"event":"request","correlationId":"031c8990-3180-4430-8b4d-73cff3c1f7fc","method":"POST","route":"/login","status":200,"durationMs":19}
+# {"event":"request","correlationId":"4eb0121a-871a-4d78-b08f-7dd4f1c521dc","method":"POST","route":"/login","status":200,"durationMs":12}
+# {"event":"request","correlationId":"0a3dbfb6-08dd-42f2-aa97-f8bf05560c1d","method":"GET","route":"/shipments","status":200,"durationMs":30}
+# {"event":"request","correlationId":"377664ae-a68b-447a-8e78-7a45efb03cfc","method":"GET","route":"/shipments/:id","status":404,"durationMs":8}
+# {"event":"request","correlationId":"78c55f50-c879-46e1-9510-baf2dcd3fc0d","method":"GET","route":"/shipments/:id/events","status":404,"durationMs":11}
+# {"event":"request","correlationId":"f140aeac-7826-4674-8747-7a0a8f60cb6d","method":"GET","route":"/shipments","status":403,"durationMs":6}
+# {"event":"request","correlationId":"375b5a68-ff6e-4325-ac80-db80272987f9","method":"GET","route":"/shipments","status":400,"durationMs":5}
+# {"event":"request","correlationId":"5f8e1221-838f-4f20-bbcd-bb0fe5cdae5a","method":"GET","route":"/shipments/export/report","status":403,"durationMs":8}
+# {"event":"request","correlationId":"15131265-7358-427c-aec2-76f89e9b632f","method":"GET","route":"/shipments/export/report","status":200,"durationMs":11}
+# {"event":"request","correlationId":"6bb6e393-17c1-43f5-b9cd-3e9eac052637","method":"GET","route":"/orders","status":403,"durationMs":5}
+# Subtest: workspace provisioning separates public registration, lists, details, events and reports
+ok 5 - workspace provisioning separates public registration, lists, details, events and reports
+  ---
+  duration_ms: 244.69225
+  ...
+# {"event":"request","correlationId":"341cce35-ec09-44a5-b6ff-ace6e278f978","method":"POST","route":"/login","status":200,"durationMs":16}
+# {"event":"request","correlationId":"c1d7dfa2-958c-41ee-b8e9-d7e17b8f9170","method":"GET","route":"/shipments","status":200,"durationMs":18}
+# Subtest: unknown-mode filtering cannot escape the workspace predicate
+ok 6 - unknown-mode filtering cannot escape the workspace predicate
+  ---
+  duration_ms: 58.419417
+  ...
+# {"event":"request","correlationId":"6883b751-0940-4e47-8dfa-e1c14f08837c","method":"POST","route":"/login","status":200,"durationMs":11}
+# {"event":"request","correlationId":"fdec1e9c-8ad7-46b5-a608-b93145632323","method":"POST","route":"/:provider/events","status":202,"durationMs":31}
+# {"event":"request","correlationId":"0b6dc5e5-bbde-440b-a08b-c2641c26e434","method":"POST","route":"/:provider/events","status":202,"durationMs":15}
+# {"event":"request","correlationId":"a1107449-81d6-4eb8-a80d-876071c08e0b","method":"POST","route":"/:provider/events","status":202,"durationMs":16}
+# {"event":"request","correlationId":"fa8c527e-cbd9-47f8-aaa2-1304a8507df1","method":"POST","route":"/:provider/events","status":409,"durationMs":8}
+# {"event":"request","correlationId":"03684ce3-3162-4661-bd99-59e9c96bf72b","method":"POST","route":"/:provider/events","status":202,"durationMs":10}
+# {"event":"request","correlationId":"3a34374a-9881-46bc-8efd-6a0f05cba50f","method":"POST","route":"/:provider/events","status":202,"durationMs":32}
+# {"event":"request","correlationId":"cf05ccde-9571-4c9b-af68-b066d63e7886","method":"POST","route":"/:provider/events","status":202,"durationMs":21}
+# {"event":"request","correlationId":"71b41ee5-6e8f-4779-a828-83377adc7e94","method":"GET","route":"/shipments/summary","status":200,"durationMs":9}
+# {"event":"request","correlationId":"90a802e8-26c8-40cd-815d-4aee9f52d54d","method":"POST","route":"/:provider/events","status":202,"durationMs":29}
+# {"event":"request","correlationId":"416cf066-653a-45b2-bc95-53e378cd7d0a","method":"GET","route":"/reviews","status":200,"durationMs":12}
+# {"event":"request","correlationId":"f8ad9011-4ddd-436d-8bbf-a3e0cc8bc500","method":"POST","route":"/reviews/:id/actions","status":200,"durationMs":20}
+# {"event":"request","correlationId":"82c435d3-24f6-416f-a877-073c658c6462","method":"POST","route":"/reviews/:id/actions","status":409,"durationMs":15}
+# {"event":"request","correlationId":"b46d6d1c-58c8-4414-94c5-855606ec5699","method":"POST","route":"/reviews/:id/actions","status":200,"durationMs":16}
+# {"event":"request","correlationId":"4bd58ec7-2aeb-45d9-bfe9-23942574cdbf","method":"GET","route":"/reviews","status":200,"durationMs":8}
+# {"event":"request","correlationId":"c0dc588b-3214-43ac-adc7-2adb127a84bc","method":"GET","route":"/notifications","status":200,"durationMs":18}
+# {"event":"request","correlationId":"3d93c182-bc73-428b-a52e-b66906500c16","method":"POST","route":"/notifications/:id/read","status":200,"durationMs":30}
+# {"event":"request","correlationId":"2a3dfeca-20ab-44d2-8405-00ec9c4387ff","method":"GET","route":"/notifications","status":200,"durationMs":13}
+# Subtest: provider events reduce deterministically across ordering, sparse fields, duplicate identity and workspace/provider collision
+ok 7 - provider events reduce deterministically across ordering, sparse fields, duplicate identity and workspace/provider collision
+  ---
+  duration_ms: 380.415833
+  ...
+# {"event":"request","correlationId":"b46d53cb-9d60-4328-8a47-2d7c17f3c668","method":"POST","route":"/login","status":200,"durationMs":8}
+# {"event":"request","correlationId":"477e9112-48b8-4a51-80d6-ccabb14bc4dc","method":"GET","route":"/shipments","status":200,"durationMs":35}
+# {"event":"request","correlationId":"ff12012f-ae70-4a7d-856c-381e6e1976e0","method":"GET","route":"/shipments","status":200,"durationMs":23}
+# {"event":"request","correlationId":"d5562411-95eb-4519-9963-de3d78c91b2b","method":"GET","route":"/shipments","status":200,"durationMs":10}
+# {"event":"request","correlationId":"b9784cf8-5fd0-4fa1-ba0d-6b1f7e751a02","method":"GET","route":"/shipments/export/report","status":200,"durationMs":6}
+# Subtest: server search finds older delayed records beyond 500; high-water pagination excludes concurrent inserts
+ok 8 - server search finds older delayed records beyond 500; high-water pagination excludes concurrent inserts
+  ---
+  duration_ms: 143.402125
+  ...
+# Applied migration 001_access_recovery.sql
+# Applied migration 002_projection_reviews.sql
+# Applied migration 003_projection_provenance.sql
+# Subtest: migration upgrade preserves legacy rows; concurrent runners serialize and changed SQL is rejected
+ok 9 - migration upgrade preserves legacy rows; concurrent runners serialize and changed SQL is rejected
+  ---
+  duration_ms: 1430.8415
+  ...
+# {"event":"request","correlationId":"26584e6c-33a1-420f-add9-4e2acb4e287a","method":"POST","route":"/login","status":200,"durationMs":31}
+# {"event":"request","correlationId":"fc905052-85d9-47f9-909b-baf128935892","method":"POST","route":"/reset-password","status":400,"durationMs":1}
+# {"event":"request","correlationId":"88a3e883-f0d3-456d-97b0-d94a03bc5445","method":"POST","route":"/reset-password","status":200,"durationMs":89}
+# {"event":"request","correlationId":"407131db-9379-47b3-ab1d-2e7632f94f6a","method":"POST","route":"/change-password/:id","status":409,"durationMs":95}
+# {"event":"request","correlationId":"01a4de07-b533-4a26-9089-b4069b783c29","method":"POST","route":"/login","status":200,"durationMs":24}
+# {"event":"request","correlationId":"95716aa5-dd0d-4390-8b6e-1a2f60dbbc16","method":"GET","route":"/me","status":401,"durationMs":9}
+# Subtest: expired resets, malformed credentials and concurrent password changes cannot consume a second version
+ok 10 - expired resets, malformed credentials and concurrent password changes cannot consume a second version
+  ---
+  duration_ms: 234.323458
+  ...
+# {"event":"request","correlationId":"c073b03e-a924-4315-819c-7a29e7847638","method":"POST","route":"/login","status":200,"durationMs":19}
+# {"event":"request","correlationId":"eca8e969-0cba-4c48-99d1-0ae0f814b331","method":"POST","route":"/:provider/events","status":202,"durationMs":62}
+# {"event":"request","correlationId":"c4f7c06b-982e-4b92-a04e-39564b295918","method":"POST","route":"/:provider/events","status":202,"durationMs":34}
+# {"event":"request","correlationId":"b824f41c-4437-49f3-bbad-00f518da4f19","method":"POST","route":"/:provider/events","status":202,"durationMs":13}
+# {"event":"request","correlationId":"8d8195e9-f655-4fa5-886e-ae69afe9c8a0","method":"GET","route":"/shipments/summary","status":200,"durationMs":25}
+# {"event":"request","correlationId":"a6c5fc4b-8670-4caa-b2c7-4321779a3cba","method":"GET","route":"/shipments/export/report","status":200,"durationMs":18}
+# {"event":"request","correlationId":"71ebe288-c438-4e29-9a57-2f571c5329c3","method":"POST","route":"/:provider/events","status":202,"durationMs":52}
+# {"event":"request","correlationId":"913cb0b4-744a-4b1e-8277-b9239c579576","method":"GET","route":"/shipments/summary","status":200,"durationMs":8}
+# {"event":"request","correlationId":"b1f60cf4-bc1a-4098-86f2-e5155008d61c","method":"POST","route":"/:provider/events","status":202,"durationMs":14}
+# {"event":"request","correlationId":"6d3b0223-0722-44e0-98c0-9b3610f1dc2a","method":"GET","route":"/shipments/summary","status":200,"durationMs":4}
+# {"event":"request","correlationId":"471f7cf0-cdae-4322-824e-1d9309c959a0","method":"POST","route":"/:provider/events","status":400,"durationMs":1}
+# {"event":"request","correlationId":"8b94fdcb-b86b-4fbe-b766-81b79ebcc824","method":"GET","route":"/orders","status":200,"durationMs":10}
+# {"event":"request","correlationId":"0e343677-55d5-4978-a330-a1991d983727","method":"GET","route":"/orders/export/report","status":200,"durationMs":4}
+# Subtest: delivery evidence corrections and currency reports preserve original promise, UTC and exact source amounts
+ok 11 - delivery evidence corrections and currency reports preserve original promise, UTC and exact source amounts
+  ---
+  duration_ms: 344.122209
+  ...
+1..11
+# tests 11
+# suites 0
+# pass 11
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 5175.255625

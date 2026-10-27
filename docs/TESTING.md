@@ -19,6 +19,7 @@ docker compose -f server/system/compose.yaml up -d --wait
 DATABASE_URL=postgresql://imsop_test:isolated-test-only@127.0.0.1:55467/imsop_test NODE_ENV=test TZ=Pacific/Honolulu pnpm -C server exec node --test --import tsx system/security.test.ts
 DATABASE_URL=postgresql://imsop_test:isolated-test-only@127.0.0.1:55467/imsop_test NODE_ENV=test pnpm -C server exec node --test --import tsx system/gateway.test.ts
 DATABASE_URL=postgresql://imsop_test:isolated-test-only@127.0.0.1:55467/imsop_test NODE_ENV=test pnpm -C server exec node system/mutation-check.mjs
+NODE_ENV=test pnpm -C server exec node --import tsx system/configuration-check.ts
 bash scripts/restore-drill.sh
 DATABASE_URL=postgresql://imsop_test:isolated-test-only@127.0.0.1:55467/imsop_test NODE_ENV=test pnpm -C server exec tsx system/query-plans.ts
 ```
@@ -36,7 +37,7 @@ pnpm audit --prod --audit-level=moderate
 pnpm exec playwright test --config playwright.system.config.ts
 ```
 
-The ordinary E2E suite uses isolated fixtures and labels them accordingly. The system config uses the real gateway on 18067 through a local first-party preview proxy on 4189; it contains no `page.route` fulfillment. Run the gateway seed suite before the browser system suite. It changes only disposable test passwords. The preview proxy exists only when `IMSOP_SYSTEM_API` equals the exact local verification URL and never changes the production Vercel proxy.
+The ordinary E2E suite uses isolated fixtures and labels them accordingly. The system config uses the real gateway on 18067 through a local first-party preview proxy on 4189; it contains no `page.route` fulfillment. Run the gateway seed suite and `DATABASE_URL=postgresql://imsop_test:isolated-test-only@127.0.0.1:55467/imsop_test NODE_ENV=test pnpm -C server exec tsx system/scale-fixture.ts` before the browser system suite. After a deliberate backend restart, run `docker compose -f server/system/compose.yaml up -d --wait` before issuing gateway requests. It changes only disposable test passwords. The preview proxy exists only when `IMSOP_SYSTEM_API` equals the exact local verification URL and never changes the production Vercel proxy.
 
 Node process timezone is Honolulu in the real database suite; the Compose database also uses Honolulu. Legacy UTC wall-time behavior is checked before/after upgrade; no timestamp conversion is performed. Migration checksum mutation, concurrent runners and deliberate SQL/cookie/scope/reset-route breakages must be rejected. The restore drill is data-preserving for its source and is separate from migration downgrade.
 
