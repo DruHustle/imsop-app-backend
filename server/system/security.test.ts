@@ -316,6 +316,15 @@ test("provider events reduce deterministically across ordering, sparse fields, d
       [workspace, p, tracking],
     )
   ).rows[0];
+  const history = await request(`/api/operations/shipments/${snapshot.id}/events`, undefined, cookie);
+  assert.equal(history.status, 200);
+  const historyItems = (await history.json()).items;
+  assert.equal(historyItems.length, 2);
+  assert.equal(historyItems[0].position, null, "delivery without location must not reuse another event's coordinates");
+  assert.equal(historyItems[0].status, "Delivered");
+  assert.deepEqual(historyItems[1].position, {lat:52.5,lng:13.4});
+  assert.equal(historyItems[1].status, "In transit");
+  assert.ok(historyItems.every((event:any) => !("payload" in event)), "raw provider payload stays private");
   assert.equal(snapshot.status, "delivered");
   assert.equal(snapshot.origin, "Berlin");
   assert.equal(snapshot.destination, "Paris");

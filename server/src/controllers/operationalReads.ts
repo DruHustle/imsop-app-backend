@@ -265,7 +265,7 @@ export async function shipmentEvents(req: AuthRequest, res: Response) {
       receivedAt,
     } = logisticsEvents;
     const items = await db
-      .select({ id: eventId, provider, eventType, occurredAt, receivedAt })
+      .select({ id: eventId, provider, eventType, occurredAt, receivedAt, payload: logisticsEvents.payload })
       .from(logisticsEvents)
       .where(
         and(
@@ -278,7 +278,15 @@ export async function shipmentEvents(req: AuthRequest, res: Response) {
       .limit(Math.min(bounds.limit, 100))
       .offset(bounds.offset);
     res.json({
-      items,
+      items: items.map(({payload, ...item}) => {
+        // Only the explicitly recorded fields are exposed; raw provider payloads stay server-side.
+        let event: any;
+        try { event = JSON.parse(payload); } catch { event = null; }
+        const loc = event?.location;
+        const position = loc && typeof loc.latitude === "number" && Number.isFinite(loc.latitude) && Math.abs(loc.latitude) <= 90 && typeof loc.longitude === "number" && Number.isFinite(loc.longitude) && Math.abs(loc.longitude) <= 180 ? {lat:loc.latitude,lng:loc.longitude} : null;
+        const statuses: Record<string,string> = {pending:"Pending",in_transit:"In transit",picked_up:"Picked up",out_for_delivery:"Out for delivery",delivered:"Delivered",delayed:"Delayed",exception:"Exception",cancelled:"Cancelled"};
+        return {...item, position, status: typeof event?.status === "string" ? statuses[event.status] ?? null : null};
+      }),
       limit: Math.min(bounds.limit, 100),
       offset: bounds.offset,
       source: "node.logistics_events",
