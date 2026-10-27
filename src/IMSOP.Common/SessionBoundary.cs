@@ -6,10 +6,23 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Configuration;
 
 namespace IMSOP.Common;
 public static class SessionBoundary
 {
+ public static string[] ResolveAllowedOrigins(IConfiguration configuration,bool production)
+ {
+  var origins=configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+   ?? (configuration["CORS_ALLOWED_ORIGINS"]??configuration["ALLOWED_ORIGIN"])?
+      .Split(',',StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries)
+   ?? (production?[]:new[]{"http://localhost:3000","http://127.0.0.1:3000","http://localhost:5173","http://127.0.0.1:5173","http://localhost:4200","http://127.0.0.1:4200"});
+  origins=origins.Select(origin=>origin.Trim().TrimEnd('/')).ToArray();
+  if(origins.Length==0||origins.Any(origin=>!Uri.TryCreate(origin,UriKind.Absolute,out var uri)
+   || !new[]{"http","https"}.Contains(uri.Scheme) || uri.UserInfo.Length>0 || uri.AbsolutePath!="/" || uri.Query.Length>0 || uri.Fragment.Length>0
+   || production&&uri.Scheme!="https"))throw new InvalidOperationException("Configure explicit valid HTTPS frontend origins for production.");
+  return origins.Distinct(StringComparer.Ordinal).ToArray();
+ }
  public static async Task Validate(TokenValidatedContext context)
  {
   try {
