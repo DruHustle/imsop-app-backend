@@ -3,6 +3,6 @@ export const release = {
     ? process.env.APP_REVISION
     : "unknown",
   apiContract: 2,
-  nodeSchema: "004_delivery_forecasts.sql",
+  nodeSchema: "005_provisioning_audit.sql",
   supplyChainSchema: "202610270002_PurchaseReceiving",
 };

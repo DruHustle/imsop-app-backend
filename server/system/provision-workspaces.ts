@@ -1,3 +1,5 @@
+import { connectionFingerprint } from "./provisioningIdentity";
+import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { z } from "zod";
 import { Pool, PoolClient } from "pg";
@@ -6,6 +8,7 @@ const uuid = z.string().uuid(),
 const schema = z
   .object({
     version: z.literal(1),
+    targetFingerprint: z.string().regex(/^[a-f0-9]{64}$/),
     sourceEvidence: z.string().trim().min(20).max(2000),
     workspaces: z
       .array(
@@ -52,6 +55,7 @@ export async function provisionWorkspaces(
   input: unknown,
   client: PoolClient,
   apply = false,
+  operatorName?: string,
 ) {
   const plan = schema.parse(input),
     workspaces = new Set(plan.workspaces.map((w) => w.id));
@@ -63,8 +67,42 @@ export async function provisionWorkspaces(
     throw new Error(
       "Every assignment must name a workspace in the reviewed plan",
     );
+  if (plan.targetFingerprint !== connectionFingerprint(client))
+    throw new Error("Reviewed plan targets a different database");
+  if (apply && (!operatorName?.trim() || operatorName.length > 200))
+    throw new Error("An operator name is required for an auditable apply");
+  const canonical = (value: any): any =>
+    Array.isArray(value)
+      ? value
+          .map(canonical)
+          .sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)))
+      : value && typeof value === "object"
+        ? Object.fromEntries(
+            Object.keys(value)
+              .sort()
+              .map((key) => [key, canonical(value[key])]),
+          )
+        : value;
+  const hash = createHash("sha256")
+    .update(JSON.stringify(canonical(plan)))
+    .digest("hex");
   await client.query("BEGIN ISOLATION LEVEL SERIALIZABLE");
   try {
+    await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))", [
+      "provision:" + hash,
+    ]);
+    if (
+      apply &&
+      (
+        await client.query(
+          "SELECT plan_hash FROM provisioning_runs WHERE plan_hash=$1",
+          [hash],
+        )
+      ).rowCount
+    ) {
+      await client.query("COMMIT");
+      return { applied: false, alreadyApplied: true, planHash: hash };
+    }
     for (const workspace of plan.workspaces) {
       if (
         workspace.organizationId &&
@@ -169,9 +207,15 @@ export async function provisionWorkspaces(
           [connector.provider, connector.workspaceId],
         );
     }
+    if (apply)
+      await client.query(
+        "INSERT INTO provisioning_runs(plan_hash,operator_name,source_evidence,reviewed_plan) VALUES($1,$2,$3,$4)",
+        [hash, operatorName!.trim(), plan.sourceEvidence, JSON.stringify(plan)],
+      );
     await client.query(apply ? "COMMIT" : "ROLLBACK");
     return {
       applied: apply,
+      planHash: hash,
       workspaces: plan.workspaces.length,
       members: plan.members.length,
       records: plan.records.length,
@@ -203,6 +247,7 @@ if (require.main === module) {
               JSON.parse(await readFile(file, "utf8")),
               client,
               option === "--apply",
+              process.env.PROVISIONING_OPERATOR,
             ),
           ),
         );

@@ -3,7 +3,7 @@ import fs from 'node:fs/promises';
 const [expected]=process.argv.slice(2);
 assert.match(expected||'',/^[a-f0-9]{40}$/);
 const origin='http://127.0.0.1:18067';
-const version=await(await fetch(origin+'/version')).json();assert.equal(version.revision,expected);assert.equal(version.apiContract,2);assert.equal(version.nodeSchema,'004_delivery_forecasts.sql');
+const version=await(await fetch(origin+'/version')).json();assert.equal(version.revision,expected);assert.equal(version.apiContract,2);assert.equal(version.nodeSchema,'005_provisioning_audit.sql');
 const ready=await fetch(origin+'/ready');assert.equal(ready.status,200);
 const id='imsop-trace-20261027-'+Date.now();
 const fixture=JSON.parse(await fs.readFile('/tmp/imsop-browser-fixture.json','utf8'));

@@ -438,8 +438,11 @@ test("reviewed ownership provisioning defaults to dry-run and refuses cross-work
       [randomUUID()],
     )
   ).rows[0].id;
+  const client = await db.connect();
+  const { connectionFingerprint } = await import("./provisioningIdentity");
   const plan = {
     version: 1,
+    targetFingerprint: connectionFingerprint(client),
     sourceEvidence:
       "Explicit synthetic ownership evidence for isolated provisioning verification.",
     workspaces: [
@@ -456,8 +459,15 @@ test("reviewed ownership provisioning defaults to dry-run and refuses cross-work
     ],
     connectors: [{ provider: "reviewed-" + workspace, workspaceId: workspace }],
   };
-  const client = await db.connect();
   try {
+    await assert.rejects(() =>
+      provisionWorkspaces(
+        { ...plan, targetFingerprint: "0".repeat(64) },
+        client,
+        true,
+        "isolated-verifier",
+      ),
+    );
     assert.equal((await provisionWorkspaces(plan, client)).applied, false);
     assert.equal(
       (
@@ -468,7 +478,11 @@ test("reviewed ownership provisioning defaults to dry-run and refuses cross-work
       ).rows[0].n,
       0,
     );
-    assert.equal((await provisionWorkspaces(plan, client, true)).applied, true);
+    assert.equal(
+      (await provisionWorkspaces(plan, client, true, "isolated-verifier"))
+        .applied,
+      true,
+    );
     assert.equal(
       (
         await db.query("SELECT active_workspace_id FROM users WHERE id=$1", [
@@ -476,6 +490,22 @@ test("reviewed ownership provisioning defaults to dry-run and refuses cross-work
         ])
       ).rows[0].active_workspace_id,
       workspace,
+    );
+    const replay = await provisionWorkspaces(
+      plan,
+      client,
+      true,
+      "isolated-verifier",
+    );
+    assert.equal(replay.alreadyApplied, true);
+    assert.equal(
+      (
+        await db.query(
+          "SELECT count(*)::int AS n FROM provisioning_runs WHERE plan_hash=$1",
+          [replay.planHash],
+        )
+      ).rows[0].n,
+      1,
     );
     const conflicting = {
       ...plan,
@@ -494,7 +524,47 @@ test("reviewed ownership provisioning defaults to dry-run and refuses cross-work
         },
       ],
     };
-    await assert.rejects(() => provisionWorkspaces(conflicting, client, true));
+    await assert.rejects(() =>
+      provisionWorkspaces(conflicting, client, true, "isolated-verifier"),
+    );
+  } finally {
+    client.release();
+  }
+});
+
+test("ownership inventory uses a read-only snapshot, preserves IDs and leaves every proposed assignment blank", async () => {
+  const { ownershipInventory } = await import("./ownership-inventory");
+  const client = await db.connect();
+  try {
+    const result = await ownershipInventory(client);
+    assert.equal(result.inventory.readOnly, true);
+    assert.equal(result.inventory.ownershipInferenceUsed, false);
+    assert.equal(result.manifest.productionAssignmentsApproved, false);
+    assert.equal(result.manifest.executable, false);
+    assert(
+      result.manifest.proposedAssignments.every(
+        (row: any) =>
+          row.proposedWorkspaceId === null &&
+          row.approvedMemberIds.length === 0 &&
+          row.verifiedOwnershipEvidence.length === 0,
+      ),
+    );
+    assert(
+      result.inventory.existingNodeUsers.some(
+        (row: any) => row.id === String(a.id),
+      ),
+    );
+    const shipments = result.inventory.records.find(
+      (row: any) => row.sourceTable === "shipments",
+    );
+    assert.equal(Number(shipments.count), shipments.records.length);
+    assert(
+      shipments.records.every(
+        (row: any) =>
+          row.id &&
+          row.ownershipEvidence.every((e: any) => e.verified === false),
+      ),
+    );
   } finally {
     client.release();
   }
