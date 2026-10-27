@@ -1,5 +1,5 @@
 {
-  "frontend": "46aaeeb2f0705b8817b00c7f4b25873630cd9bee",
+  "frontend": "d243b29dda97b8c43ac669663c80524be3e7c12e",
   "backend": "84802bf1c62049a9ba024fa7d7eb950399159b75",
   "imageManifestDigest": "sha256:b1a4a2544c9c74d95a8497009ef08b24fbf095b0cde7c66c3ce47ea91a4d6c88",
   "target": "linux/arm64",

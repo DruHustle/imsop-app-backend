@@ -1,6 +1,6 @@
 # Final follow-up qualification — 27 October 2026
 
-See [review and gap closure](../../docs/remediation/FOLLOWUP-2026-10-27.md). Application revisions are backend `84802bf1c62049a9ba024fa7d7eb950399159b75` and frontend `46aaeeb2f0705b8817b00c7f4b25873630cd9bee`. Later commits contain test/document/evidence only. Both original trees were clean; histories/remotes remain independent. Main merge is authorized by the user's follow-up and is tracked in backend PR #5/frontend PR #7. This is isolated qualification, not a production Oracle deployment or real provider receipt.
+See [review and gap closure](../../docs/remediation/FOLLOWUP-2026-10-27.md). Application revisions are backend `84802bf1c62049a9ba024fa7d7eb950399159b75` and frontend `d243b29dda97b8c43ac669663c80524be3e7c12e`. Later commits contain test/document/evidence only. Both original trees were clean; histories/remotes remain independent. Main merge is authorized by the user's follow-up and is tracked in backend PR #5/frontend PR #7. This is isolated qualification, not a production Oracle deployment or real provider receipt.
 
 | Exact command (backend checkout) | Result | Evidence |
 |---|---|---|
