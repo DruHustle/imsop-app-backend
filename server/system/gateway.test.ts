@@ -4,6 +4,7 @@ import { randomUUID, createHmac } from "node:crypto";
 import { writeFile } from "node:fs/promises";
 import { Pool } from "pg";
 import bcrypt from "bcryptjs";
+import { release } from "../src/release";
 const origin = "http://127.0.0.1:18067",
   sink = "http://127.0.0.1:18027";
 assert.match(
@@ -90,6 +91,16 @@ before(async () => {
   b = await createAccount("analyst");
 });
 after(() => db.end());
+test("public gateway release metadata agrees with the implemented Node contract", async () => {
+  const response=await fetch(origin+"/version");
+  assert.equal(response.status,200);
+  const body=await response.json();
+  assert.match(body.revision,/^[a-f0-9]{40}$/);
+  assert.equal(body.apiContract,release.apiContract);
+  assert.equal(body.nodeSchema,release.nodeSchema);
+  assert.equal(body.supplyChainSchema,release.supplyChainSchema);
+  assert.deepEqual([...body.capabilities].sort(),[...release.capabilities].sort());
+});
 test("optional adapter configuration and durable transport status remain scoped and separate from connectivity", async () => {
   const status=await call("/api/operations/integrations",undefined,a.cookie);
   assert.equal(status.status,200);

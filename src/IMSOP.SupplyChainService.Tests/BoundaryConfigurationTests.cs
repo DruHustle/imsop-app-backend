@@ -5,6 +5,13 @@ namespace IMSOP.SupplyChainService.Tests;
 public class BoundaryConfigurationTests
 {
  [Fact]
+ public void PublicReleaseAdvertisesTheImplementedOptionalAdapterContract()
+ {
+  using var release=System.Text.Json.JsonDocument.Parse(System.Text.Json.JsonSerializer.Serialize(ReleaseIdentity.Current));
+  Assert.Contains("optional-adapters-v1",release.RootElement.GetProperty("capabilities").EnumerateArray().Select(value=>value.GetString()));
+  Assert.Equal(2,release.RootElement.GetProperty("apiContract").GetInt32());
+ }
+ [Fact]
  public void ProductionRejectsMissingOrDevelopmentOriginFallbacks()
  {
   var empty=new ConfigurationBuilder().Build();
