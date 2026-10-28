@@ -4,6 +4,7 @@ export const release = {
     : "unknown",
   apiContract: 2,
   capabilities: [
+    "optional-adapters-v1",
     "purchase-pagination-v1",
     "scoped-reviews-v1",
     "customer-order-search-v1",

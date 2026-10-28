@@ -242,10 +242,10 @@ test("protected operations reject anonymous requests", async () => {
   try {
     const address = server.address();
     assert(address && typeof address === "object");
-    const res = await fetch(
-      `http://127.0.0.1:${address.port}/api/operations/shipments`,
-    );
-    assert.equal(res.status, 401);
+    for (const endpoint of ["/api/operations/shipments", "/api/operations/integrations/sap/metadata"]) {
+      const response: Awaited<ReturnType<typeof fetch>> = await fetch(`http://127.0.0.1:${address.port}${endpoint}`);
+      assert.equal(response.status, 401);
+    }
   } finally {
     await new Promise<void>((resolve, reject) =>
       server.close((err) => (err ? reject(err) : resolve())),

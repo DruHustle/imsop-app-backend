@@ -1,0 +1,13 @@
+using IMSOP.SupplyChainService;
+using Microsoft.Extensions.Configuration;
+using Xunit;
+namespace IMSOP.SupplyChainService.Tests;
+public class OrderTransportConfigurationTests {
+ static IConfiguration Config(params (string,string?)[] values)=>new ConfigurationBuilder().AddInMemoryCollection(values.ToDictionary(x=>x.Item1,x=>x.Item2)).Build();
+ const string Credential="Endpoint=sb://isolated.servicebus.windows.net/;SharedAccessKeyName=Send;SharedAccessKey=c3ludGhldGljLW9ubHk=";
+ [Fact] public void DispatchIsDisabledByDefaultWithoutConnecting(){Assert.False(OrderTransportSettings.Resolve(Config(),false).Enabled);Assert.False(OrderTransportSettings.Resolve(Config(("ServiceBus:ConnectionString","invalid")),false).Enabled);}
+ [Fact] public void EnabledDispatchRequiresValidCredentialAndQueue(){Assert.Throws<InvalidOperationException>(()=>OrderTransportSettings.Resolve(Config(("ServiceBus:Enabled","true")),false));Assert.Throws<InvalidOperationException>(()=>OrderTransportSettings.Resolve(Config(("ServiceBus:Enabled","true"),("ServiceBus:OrderQueueName","orders"),("ServiceBus:ConnectionString","invalid")),false));Assert.True(OrderTransportSettings.Resolve(Config(("ServiceBus:Enabled","true"),("ServiceBus:OrderQueueName","orders"),("ServiceBus:ConnectionString",Credential)),false).Enabled);}
+ [Fact] public void CredentialFilesAreServerOnlyAndMustBeUnambiguous(){var file=Path.GetTempFileName();File.WriteAllText(file,Credential+"\n");try{var settings=OrderTransportSettings.Resolve(Config(("ServiceBus:Enabled","true"),("ServiceBus:OrderQueueName","orders"),("ServiceBus:ConnectionStringFile",file)),false);Assert.Equal(Credential,settings.ConnectionString);Assert.DoesNotContain(Credential,System.Text.Json.JsonSerializer.Serialize(settings));Assert.Throws<InvalidOperationException>(()=>OrderTransportSettings.Resolve(Config(("ServiceBus:Enabled","true"),("ServiceBus:OrderQueueName","orders"),("ServiceBus:ConnectionStringFile",file),("ServiceBus:ConnectionString",Credential)),false));}finally{File.Delete(file);}}
+ [Fact] public void ProductionCannotUseTheDevelopmentTransportDouble(){var config=Config(("ServiceBus:Enabled","true"),("Verification:TransportUrl","http://sink:18027/transport"));Assert.NotNull(OrderTransportSettings.Resolve(config,true).VerificationUrl);Assert.Throws<InvalidOperationException>(()=>OrderTransportSettings.Resolve(config,false));}
+ [Fact] public void EntityScopedCredentialsMustMatchTheSelectedQueue(){Assert.Throws<InvalidOperationException>(()=>OrderTransportSettings.Resolve(Config(("ServiceBus:Enabled","true"),("ServiceBus:OrderQueueName","other"),("ServiceBus:ConnectionString",Credential+";EntityPath=orders")),false));}
+}

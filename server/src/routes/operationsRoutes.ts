@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { sapMetadata } from "../controllers/integrations";
 import {
   exportShipmentsReport,
   exportOrdersReport,
@@ -34,6 +35,7 @@ import {
   forecastInput,
 } from "../controllers/forecasts";
 const router = Router();
+router.get("/integrations/sap/metadata", authenticate, requireWorkspace, authorize(["admin", "engineer"]), sapMetadata);
 router.get(
   "/forecasts",
   authenticate,

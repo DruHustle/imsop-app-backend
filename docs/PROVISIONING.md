@@ -1,5 +1,7 @@
 # Explicit workspace provisioning and safe legacy recovery
 
+The [review draft template](provisioning-review.template.json) leaves all unsupported assignments blank and is deliberately non-executable. Production provisioning remains pending; the empty draft does not authorize creating memberships, roles, mappings or connector bindings. Fill a private copy only from verified evidence, then prepare the separately reviewed executable schema required by the tool below. External activation is a separate pending item; see [optional integrations](OPTIONAL_INTEGRATIONS.md).
+
 Operations owner: the administrator responsible for the existing IMSOP backend release and database. Product/data owner must approve a manifest associating legacy records, provider aliases and users with workspaces. There is no automatic public-signup access, email-domain inference or guessed row ownership.
 
 1. Take a provider-native backup and record its recovery point. Rehearse restoring a disposable copy using [recovery](RECOVERY.md).
