@@ -38,6 +38,7 @@ services:
       PASSWORD_RESET_BASE_URL: http://127.0.0.1:4189/?campaign=system-test#/reset-password?lang=en
       EMAIL_NOTIFICATIONS_ENABLED: "true"
       FORECAST_PROVIDER_URL: http://sink:18027/forecast
+      FORECAST_ENABLED: "true"
       FORECAST_PROVIDER_NAME: isolated-forecast
       EMAIL_PROVIDER: smtp
       SMTP_HOST: sink

@@ -1,3 +1,4 @@
+import { assertIntegrationConfiguration } from "./integrations";
 const DEVELOPMENT_SECRET = "development-only-change-me-32-characters";
 const PLACEHOLDER_PATTERN = /(REPLACE_|YOUR-|RENDER_)/i;
 
@@ -26,6 +27,7 @@ export function getJwtSecret(): string {
 }
 
 export function assertProductionConfiguration(): void {
+  assertIntegrationConfiguration();
   getJwtSecret();
   if (process.env.NODE_ENV === "production" && !process.env.DATABASE_URL) {
     throw new Error("DATABASE_URL must be configured in production");

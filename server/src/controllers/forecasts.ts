@@ -3,6 +3,8 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { AuthRequest } from "../middleware/auth";
 import { connection } from "../config/db";
+import { forecastConfiguration } from "../config/integrations";
+export { forecastConfiguration } from "../config/integrations";
 const day = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/)
@@ -37,32 +39,6 @@ export const observationInput = z
 export const forecastInput = z
   .object({ horizonDays: z.number().int().min(1).max(90) })
   .strict();
-export function forecastConfiguration() {
-  const target = process.env.FORECAST_PROVIDER_URL;
-  if (!target) return null;
-  const url = new URL(target);
-  if (
-    url.username ||
-    url.password ||
-    url.hash ||
-    (url.protocol !== "https:" &&
-      !(
-        process.env.NODE_ENV === "test" &&
-        url.protocol === "http:" &&
-        ["127.0.0.1", "localhost", "sink"].includes(url.hostname)
-      ))
-  )
-    throw new Error(
-      "Forecast provider requires an administrator-configured HTTPS URL",
-    );
-  const horizon = Number(process.env.FORECAST_MAX_HORIZON_DAYS || 30);
-  if (!Number.isInteger(horizon) || horizon < 1 || horizon > 90)
-    throw new Error("Invalid configured forecast horizon");
-  const name = process.env.FORECAST_PROVIDER_NAME;
-  if (!name || name.length > 100)
-    throw new Error("Forecast provider name is required");
-  return { url: url.href, name, maxHorizon: horizon };
-}
 export async function forecastStatus(req: AuthRequest, res: Response) {
   const counts = (
     await connection.query(
@@ -220,8 +196,8 @@ export async function runForecast(req: AuthRequest, res: Response) {
       redirect: "error",
       headers: {
         "Content-Type": "application/json",
-        ...(process.env.FORECAST_PROVIDER_TOKEN
-          ? { Authorization: "Bearer " + process.env.FORECAST_PROVIDER_TOKEN }
+        ...(config.token
+          ? { Authorization: "Bearer " + config.token }
           : {}),
       },
       body: JSON.stringify(input),

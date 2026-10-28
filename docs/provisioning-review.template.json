@@ -1,0 +1,21 @@
+{
+  "kind": "provisioning-review-draft",
+  "executable": false,
+  "productionAssignmentsApproved": false,
+  "operator": null,
+  "sourceEvidence": null,
+  "targetFingerprint": null,
+  "approvedAccountEmails": [],
+  "approvedRoleChanges": [],
+  "workspaces": [],
+  "members": [],
+  "records": [],
+  "connectors": [],
+  "organizationMappings": [],
+  "pendingConfiguration": {
+    "productionProvisioning": "Await verified explicit assignments; preserve legacy records and quarantine unassigned rows",
+    "forecastActivation": "No approved provider or source observations",
+    "orderTransportActivation": "No approved Service Bus queue or credential reference",
+    "sapActivation": "No approved target, workspace allowlist or business mapping"
+  }
+}

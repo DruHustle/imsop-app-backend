@@ -90,6 +90,21 @@ before(async () => {
   b = await createAccount("analyst");
 });
 after(() => db.end());
+test("optional adapter configuration and durable transport status remain scoped and separate from connectivity", async () => {
+  const status=await call("/api/operations/integrations",undefined,a.cookie);
+  assert.equal(status.status,200);
+  const body=await status.json();
+  assert.equal(body.adapters.forecast.state,"configured");
+  assert.equal(body.adapters.sap.state,"not-configured");
+  assert.equal(body.adapters.sap.connectivity,"not probed");
+  assert.equal((await call("/api/operations/integrations/sap/metadata",undefined,a.cookie)).status,503);
+  const transport=await call("/supply-chain/api/v1/orders/transport",undefined,a.cookie);
+  assert.equal(transport.status,200);
+  const data=await transport.json();
+  assert.equal(data.state,"configured");
+  assert.equal(data.connectivity,"not probed");
+  assert(Array.isArray(data.outbox));
+});
 test("gateway forwards cookies, rejects public/cross-workspace reads and validates order DTOs", async () => {
   const unprovisioned = await call("/api/auth/register", {
     email: randomUUID() + "@imsop.test",

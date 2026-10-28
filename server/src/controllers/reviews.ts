@@ -3,6 +3,7 @@ import { Response } from "express";
 import { connection } from "../config/db";
 import { AuthRequest } from "../middleware/auth";
 import { numericId, readBounds } from "./operationalReads";
+import { forecastConfiguration, sapConfiguration } from "../config/integrations";
 export async function reviewFeed(req: AuthRequest, res: Response) {
   let bounds;
   try {
@@ -168,6 +169,10 @@ export async function integrationStatus(req: AuthRequest, res: Response) {
         ).rows
       : undefined;
   res.json({
+    adapters: {
+      forecast: { state: forecastConfiguration() ? "configured" : "not-configured", connectivity: "not probed", support: "validated source-observation forecasts" },
+      sap: { state: sapConfiguration() ? (sapConfiguration()!.workspaces.includes(req.user!.workspaceId!) ? "configured" : "not-authorized") : "not-configured", connectivity: "not probed", support: "read-only OData metadata; business synchronization requires reviewed mappings" },
+    },
     items: items.rows.map((item) => ({
       ...item,
       signatureConfigured: Boolean(

@@ -43,7 +43,16 @@ public class ReceiveOrderRequest {
 public class ReceiptIdentity { public Guid Id {get;set;} public string RequestHash {get;set;}=""; }
 
 [ApiController,Authorize(Roles="admin,engineer,analyst"),Route("api/v1/[controller]")]
-public class OrdersController(ApplicationDbContext context,IConfiguration config) : ControllerBase {
+public class OrdersController(ApplicationDbContext context,IConfiguration config,IHostEnvironment environment) : ControllerBase {
+ [HttpGet("transport")]
+ public async Task<IActionResult> TransportStatus(CancellationToken ct) {
+  if(!context.OrganizationId.HasValue)return Forbid();
+  var states=await (from message in context.OrderOutbox join order in context.PurchaseOrders on message.OrderId equals order.Id group message by message.State into g select new{state=g.Key,count=g.Count()}).ToListAsync(ct);
+  string state;bool enabled;
+  try{var settings=OrderTransportSettings.Resolve(config,environment.IsDevelopment());enabled=settings.Enabled;state=enabled?"configured":"not-configured";}
+  catch{enabled=config.GetValue("ServiceBus:Enabled",false);state="misconfigured";}
+  return Ok(new{enabled,state,connectivity="not probed",delivery="transport acceptance is not fulfillment",outbox=states});
+ }
  static string Hash(object value)=>Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(value))));
  static bool ValidKey(string? key)=>key is {Length:>0 and <=100} && System.Text.RegularExpressions.Regex.IsMatch(key,"^[a-zA-Z0-9_-]+$");
  static string Money(decimal value)=>value.ToString(CultureInfo.InvariantCulture);
