@@ -1,17 +1,37 @@
-import {externalMailAvailable} from "../services/notificationDelivery";
+import { externalMailAvailable } from "../services/notificationDelivery";
 import { Response } from "express";
 import { connection } from "../config/db";
 import { AuthRequest } from "../middleware/auth";
 import { numericId, readBounds } from "./operationalReads";
 export async function reviewFeed(req: AuthRequest, res: Response) {
-  const bounds = readBounds(req.query);
+  let bounds;
+  try {
+    bounds = readBounds(req.query);
+  } catch {
+    return res.status(400).json({ error: "Invalid pagination" });
+  }
+  const state = req.query.state;
+  if (
+    state !== undefined &&
+    (typeof state !== "string" ||
+      !["open", "acknowledged", "resolved"].includes(state))
+  )
+    return res.status(400).json({ error: "Invalid review state" });
+  const total = (
+    await connection.query(
+      "SELECT count(*)::int AS total FROM review_cases WHERE workspace_id=$1 AND ($2::text IS NULL OR state=$2)",
+      [req.user!.workspaceId, state ?? null],
+    )
+  ).rows[0].total;
   const result = await connection.query(
     `SELECT c.id,c.shipment_id AS "shipmentId",s.tracking_number AS "trackingNumber",c.state,c.assignee_id AS "assigneeId",c.version,c.updated_at AS "updatedAt"
- FROM review_cases c JOIN shipments s ON s.id=c.shipment_id WHERE c.workspace_id=$1 ORDER BY c.updated_at DESC,c.id DESC LIMIT $2 OFFSET $3`,
-    [req.user!.workspaceId, bounds.limit, bounds.offset],
+ FROM review_cases c JOIN shipments s ON s.id=c.shipment_id WHERE c.workspace_id=$1 AND ($4::text IS NULL OR c.state=$4) ORDER BY c.updated_at DESC,c.id DESC LIMIT $2 OFFSET $3`,
+    [req.user!.workspaceId, bounds.limit, bounds.offset, state ?? null],
   );
   res.json({
     items: result.rows,
+    ...bounds,
+    total,
     capability: "persistent-in-app-review",
     source: "node.review_cases",
   });
@@ -53,6 +73,19 @@ export async function actOnReview(req: AuthRequest, res: Response) {
       return res
         .status(409)
         .json({ error: "This case changed. Refresh before retrying." });
+    }
+    if (
+      (action === "acknowledge" && row.state !== "open") ||
+      (action === "reopen" && row.state !== "resolved") ||
+      (action === "resolve" && row.state === "resolved")
+    ) {
+      await tx.query("ROLLBACK");
+      return res
+        .status(409)
+        .json({
+          error:
+            "This action does not apply to the current case state. Refresh before retrying.",
+        });
     }
     if (action === "assign" && assigneeId !== null) {
       const member = await tx.query(

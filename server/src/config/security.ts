@@ -3,12 +3,12 @@ const PLACEHOLDER_PATTERN = /(REPLACE_|YOUR-|RENDER_)/i;
 
 export function getAllowedOrigins(): string[] {
   const configured =
-    process.env.CORS_ALLOWED_ORIGINS ||
-    process.env.ALLOWED_ORIGIN ||
+    process.env.CORS_ALLOWED_ORIGINS ??
+    process.env.ALLOWED_ORIGIN ??
     "http://localhost:5173";
   return configured
     .split(",")
-    .map((origin) => origin.trim())
+    .map((origin) => origin.trim().replace(/\/+$/, ""))
     .filter(Boolean);
 }
 
@@ -30,8 +30,13 @@ export function assertProductionConfiguration(): void {
   if (process.env.NODE_ENV === "production" && !process.env.DATABASE_URL) {
     throw new Error("DATABASE_URL must be configured in production");
   }
-  if (process.env.NODE_ENV === "production" && !process.env.ALLOWED_ORIGIN) {
-    throw new Error("ALLOWED_ORIGIN must be configured in production");
+  if (
+    process.env.NODE_ENV === "production" &&
+    !(process.env.CORS_ALLOWED_ORIGINS ?? process.env.ALLOWED_ORIGIN)
+  ) {
+    throw new Error(
+      "Explicit frontend origins must be configured in production",
+    );
   }
   if (
     process.env.NODE_ENV === "production" &&
@@ -45,13 +50,28 @@ export function assertProductionConfiguration(): void {
       !origins.length ||
       origins.some((origin) => {
         try {
-          return new URL(origin).protocol !== "https:";
+          const url = new URL(origin);
+          return url.protocol !== "https:" || url.origin !== origin;
         } catch {
           return true;
         }
       })
     )
       throw new Error("Production origins must be valid HTTPS URLs");
+    try {
+      const reset = new URL(process.env.PASSWORD_RESET_BASE_URL!);
+      if (
+        !origins.includes(reset.origin) ||
+        reset.username ||
+        reset.password ||
+        reset.hash.split("?")[0] !== "#/reset-password"
+      )
+        throw new Error();
+    } catch {
+      throw new Error(
+        "PASSWORD_RESET_BASE_URL must use an allowed frontend origin and #/reset-password route",
+      );
+    }
     if (
       [
         process.env.DATABASE_URL,

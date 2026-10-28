@@ -55,6 +55,7 @@ public static class SessionBoundary
  public static void UseImsopBoundary(this WebApplication app, string[] allowedOrigins)
  {
   app.Use(async (context,next)=> {
+   context.Response.Headers.CacheControl="private, no-store";
    var candidate=context.Request.Headers["X-Request-ID"].ToString();
    context.TraceIdentifier=System.Text.RegularExpressions.Regex.IsMatch(candidate,"^[a-zA-Z0-9-]{8,64}$") ? candidate : Guid.NewGuid().ToString();
    context.Request.Headers["X-Request-ID"]=context.TraceIdentifier;

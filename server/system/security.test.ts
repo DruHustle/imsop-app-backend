@@ -242,11 +242,27 @@ test("workspace provisioning separates public registration, lists, details, even
   );
 });
 
-test('unknown-mode filtering cannot escape the workspace predicate',async()=>{
- const a=randomUUID(),b=randomUUID();await connection.query("INSERT INTO workspaces(id,name) VALUES($1,'Filter A'),($2,'Filter B')",[a,b]);
- const {cookie}=await account('user',a);
- await connection.query("INSERT INTO shipments(workspace_id,tracking_number,origin,destination,transport_mode) VALUES($1,'FILTER-A','Start','End',NULL),($2,'FILTER-B','Start','End','legacy-unknown')",[a,b]);
- const response=await request('/api/operations/shipments?limit=10&mode=Unknown',undefined,cookie);assert.equal(response.status,200);const result=await response.json();assert.equal(result.total,1);assert.equal(result.items[0].trackingNumber,'FILTER-A');
+test("unknown-mode filtering cannot escape the workspace predicate", async () => {
+  const a = randomUUID(),
+    b = randomUUID();
+  await connection.query(
+    "INSERT INTO workspaces(id,name) VALUES($1,'Filter A'),($2,'Filter B')",
+    [a, b],
+  );
+  const { cookie } = await account("user", a);
+  await connection.query(
+    "INSERT INTO shipments(workspace_id,tracking_number,origin,destination,transport_mode) VALUES($1,'FILTER-A','Start','End',NULL),($2,'FILTER-B','Start','End','legacy-unknown')",
+    [a, b],
+  );
+  const response = await request(
+    "/api/operations/shipments?limit=10&mode=Unknown",
+    undefined,
+    cookie,
+  );
+  assert.equal(response.status, 200);
+  const result = await response.json();
+  assert.equal(result.total, 1);
+  assert.equal(result.items[0].trackingNumber, "FILTER-A");
 });
 
 test("provider events reduce deterministically across ordering, sparse fields, duplicate identity and workspace/provider collision", async () => {
@@ -316,15 +332,26 @@ test("provider events reduce deterministically across ordering, sparse fields, d
       [workspace, p, tracking],
     )
   ).rows[0];
-  const history = await request(`/api/operations/shipments/${snapshot.id}/events`, undefined, cookie);
+  const history = await request(
+    `/api/operations/shipments/${snapshot.id}/events`,
+    undefined,
+    cookie,
+  );
   assert.equal(history.status, 200);
   const historyItems = (await history.json()).items;
   assert.equal(historyItems.length, 2);
-  assert.equal(historyItems[0].position, null, "delivery without location must not reuse another event's coordinates");
+  assert.equal(
+    historyItems[0].position,
+    null,
+    "delivery without location must not reuse another event's coordinates",
+  );
   assert.equal(historyItems[0].status, "Delivered");
-  assert.deepEqual(historyItems[1].position, {lat:52.5,lng:13.4});
+  assert.deepEqual(historyItems[1].position, { lat: 52.5, lng: 13.4 });
   assert.equal(historyItems[1].status, "In transit");
-  assert.ok(historyItems.every((event:any) => !("payload" in event)), "raw provider payload stays private");
+  assert.ok(
+    historyItems.every((event: any) => !("payload" in event)),
+    "raw provider payload stays private",
+  );
   assert.equal(snapshot.status, "delivered");
   assert.equal(snapshot.origin, "Berlin");
   assert.equal(snapshot.destination, "Paris");
@@ -623,35 +650,271 @@ test("expired resets, malformed credentials and concurrent password changes cann
   assert.equal((await response.json()).code, "SESSION_EXPIRED");
 });
 
-test('delivery evidence corrections and currency reports preserve original promise, UTC and exact source amounts',async()=>{
- const workspace=randomUUID(),provider='metric-'+randomUUID(),secret='isolated-signing-secret-at-least-32-characters';
- await connection.query("INSERT INTO workspaces(id,name) VALUES($1,'Metric and currency verification')",[workspace]);
- await connection.query('INSERT INTO logistics_connectors(provider,workspace_id) VALUES($1,$2)',[provider,workspace]);
- process.env.LOGISTICS_WEBHOOK_SECRETS=JSON.stringify({...JSON.parse(process.env.LOGISTICS_WEBHOOK_SECRETS||'{}'),[provider]:secret});
- const {cookie}=await account('analyst',workspace),{createHmac}=await import('node:crypto');
- const ingest=async(event:any)=>{const body=JSON.stringify(event),timestamp=String(Math.floor(Date.now()/1000));return fetch(base+`/api/integrations/logistics/${provider}/events`,{method:'POST',headers:{'Content-Type':'application/json','X-Forwarded-For':`192.0.2.${++requestSequence}`,'x-imsop-timestamp':timestamp,'x-imsop-signature':'sha256='+createHmac('sha256',secret).update(timestamp+'.'+body).digest('hex')},body});};
- const tracking='METRIC-'+randomUUID();
- for(const event of [
-  {eventId:'a',eventType:'shipment.created',trackingNumber:tracking,status:'in_transit',occurredAt:'2026-10-01T00:00:00Z',estimatedArrival:'2026-10-03T00:10:00Z'},
-  {eventId:'b',eventType:'shipment.updated',trackingNumber:tracking,status:'in_transit',occurredAt:'2026-10-02T00:00:00Z',estimatedArrival:'2026-10-05T00:10:00Z'},
-  {eventId:'c',eventType:'shipment.delivered',trackingNumber:tracking,status:'delivered',occurredAt:'2026-10-04T00:00:00Z',actualArrival:'2026-10-04T00:00:00Z'},
- ])assert.equal((await ingest(event)).status,202);
- let summary=await(await request('/api/operations/shipments/summary',undefined,cookie)).json();assert.equal(summary.eligible,1);assert.equal(summary.onTime,0);
- const report=await(await request('/api/operations/shipments/export/report',undefined,cookie)).text();assert.match(report,/2026-10-03T00:10:00.000Z/);assert.match(report,/2026-10-04T00:00:00.000Z/);
- assert.equal((await ingest({eventId:'d',eventType:'shipment.corrected',trackingNumber:tracking,status:'delivered',occurredAt:'2026-10-06T00:00:00Z',actualArrival:null})).status,202);
- summary=await(await request('/api/operations/shipments/summary',undefined,cookie)).json();assert.equal(summary.eligible,0);
- assert.equal((await ingest({eventId:'e',eventType:'shipment.corrected',trackingNumber:tracking,status:'delivered',occurredAt:'2026-10-07T00:00:00Z',actualArrival:'2026-10-03T00:00:00Z'})).status,202);
- summary=await(await request('/api/operations/shipments/summary',undefined,cookie)).json();assert.equal(summary.onTime,1);
- assert.equal((await ingest({eventId:'bad',eventType:'shipment.delivered',trackingNumber:tracking,status:'delivered',occurredAt:'2026-10-08T00:00:00Z'})).status,400);
- const currencySuffix=randomUUID();
- await connection.query("INSERT INTO orders(workspace_id,order_number,total_amount,currency) VALUES($1,'CURRENCY-ZERO-'||$2,0,NULL),($1,'CURRENCY-EUR-'||$2,1234.50,'EUR'),($1,'CURRENCY-USD-'||$2,12.3456,'USD')",[workspace,currencySuffix]);
- const orders=await(await request('/api/operations/orders?limit=10',undefined,cookie)).json();assert.equal(orders.items.find((o:any)=>o.orderNumber==='CURRENCY-USD-'+currencySuffix).totalAmount,'12.35');
- const currencyReport=await(await request('/api/operations/orders/export/report',undefined,cookie)).text();assert.match(currencyReport,/0.00 currency unknown/);assert.match(currencyReport,/1234.50 EUR/);assert.match(currencyReport,/12.35 USD/);assert.doesNotMatch(currencyReport,/<td>\$/);
+test("delivery evidence corrections and currency reports preserve original promise, UTC and exact source amounts", async () => {
+  const workspace = randomUUID(),
+    provider = "metric-" + randomUUID(),
+    secret = "isolated-signing-secret-at-least-32-characters";
+  await connection.query(
+    "INSERT INTO workspaces(id,name) VALUES($1,'Metric and currency verification')",
+    [workspace],
+  );
+  await connection.query(
+    "INSERT INTO logistics_connectors(provider,workspace_id) VALUES($1,$2)",
+    [provider, workspace],
+  );
+  process.env.LOGISTICS_WEBHOOK_SECRETS = JSON.stringify({
+    ...JSON.parse(process.env.LOGISTICS_WEBHOOK_SECRETS || "{}"),
+    [provider]: secret,
+  });
+  const { cookie } = await account("analyst", workspace),
+    { createHmac } = await import("node:crypto");
+  const ingest = async (event: any) => {
+    const body = JSON.stringify(event),
+      timestamp = String(Math.floor(Date.now() / 1000));
+    return fetch(base + `/api/integrations/logistics/${provider}/events`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Forwarded-For": `192.0.2.${++requestSequence}`,
+        "x-imsop-timestamp": timestamp,
+        "x-imsop-signature":
+          "sha256=" +
+          createHmac("sha256", secret)
+            .update(timestamp + "." + body)
+            .digest("hex"),
+      },
+      body,
+    });
+  };
+  const tracking = "METRIC-" + randomUUID();
+  for (const event of [
+    {
+      eventId: "a",
+      eventType: "shipment.created",
+      trackingNumber: tracking,
+      status: "in_transit",
+      occurredAt: "2026-10-01T00:00:00Z",
+      estimatedArrival: "2026-10-03T00:10:00Z",
+    },
+    {
+      eventId: "b",
+      eventType: "shipment.updated",
+      trackingNumber: tracking,
+      status: "in_transit",
+      occurredAt: "2026-10-02T00:00:00Z",
+      estimatedArrival: "2026-10-05T00:10:00Z",
+    },
+    {
+      eventId: "c",
+      eventType: "shipment.delivered",
+      trackingNumber: tracking,
+      status: "delivered",
+      occurredAt: "2026-10-04T00:00:00Z",
+      actualArrival: "2026-10-04T00:00:00Z",
+    },
+  ])
+    assert.equal((await ingest(event)).status, 202);
+  let summary = await (
+    await request("/api/operations/shipments/summary", undefined, cookie)
+  ).json();
+  assert.equal(summary.eligible, 1);
+  assert.equal(summary.onTime, 0);
+  const report = await (
+    await request("/api/operations/shipments/export/report", undefined, cookie)
+  ).text();
+  assert.match(report, /2026-10-03T00:10:00.000Z/);
+  assert.match(report, /2026-10-04T00:00:00.000Z/);
+  assert.equal(
+    (
+      await ingest({
+        eventId: "d",
+        eventType: "shipment.corrected",
+        trackingNumber: tracking,
+        status: "delivered",
+        occurredAt: "2026-10-06T00:00:00Z",
+        actualArrival: null,
+      })
+    ).status,
+    202,
+  );
+  summary = await (
+    await request("/api/operations/shipments/summary", undefined, cookie)
+  ).json();
+  assert.equal(summary.eligible, 0);
+  assert.equal(
+    (
+      await ingest({
+        eventId: "e",
+        eventType: "shipment.corrected",
+        trackingNumber: tracking,
+        status: "delivered",
+        occurredAt: "2026-10-07T00:00:00Z",
+        actualArrival: "2026-10-03T00:00:00Z",
+      })
+    ).status,
+    202,
+  );
+  summary = await (
+    await request("/api/operations/shipments/summary", undefined, cookie)
+  ).json();
+  assert.equal(summary.onTime, 1);
+  assert.equal(
+    (
+      await ingest({
+        eventId: "bad",
+        eventType: "shipment.delivered",
+        trackingNumber: tracking,
+        status: "delivered",
+        occurredAt: "2026-10-08T00:00:00Z",
+      })
+    ).status,
+    400,
+  );
+  const currencySuffix = randomUUID();
+  await connection.query(
+    "INSERT INTO orders(workspace_id,order_number,total_amount,currency) VALUES($1,'CURRENCY-ZERO-'||$2,0,NULL),($1,'CURRENCY-EUR-'||$2,1234.50,'EUR'),($1,'CURRENCY-USD-'||$2,12.3456,'USD')",
+    [workspace, currencySuffix],
+  );
+  const orders = await (
+    await request("/api/operations/orders?limit=10", undefined, cookie)
+  ).json();
+  assert.equal(
+    orders.items.find(
+      (o: any) => o.orderNumber === "CURRENCY-USD-" + currencySuffix,
+    ).totalAmount,
+    "12.35",
+  );
+  const currencyReport = await (
+    await request("/api/operations/orders/export/report", undefined, cookie)
+  ).text();
+  assert.match(currencyReport, /0.00 currency unknown/);
+  assert.match(currencyReport, /1234.50 EUR/);
+  assert.match(currencyReport, /12.35 USD/);
+  assert.doesNotMatch(currencyReport, /<td>\$/);
 });
 
+test("an invalid explicit Authorization header never falls back to an authenticated cookie", async () => {
+  const { cookie } = await account();
+  const response = await fetch(base + "/api/auth/me", {
+    headers: {
+      Cookie: cookie,
+      Authorization: "invalid-scheme",
+      "X-Forwarded-For": "192.0.2.219",
+    },
+  });
+  assert.equal(response.status, 401);
+});
 
-test('an invalid explicit Authorization header never falls back to an authenticated cookie',async()=>{
- const {cookie}=await account();
- const response=await fetch(base+'/api/auth/me',{headers:{Cookie:cookie,Authorization:'invalid-scheme','X-Forwarded-For':'192.0.2.219'}});
- assert.equal(response.status,401);
+test("order search and date filters reach older rows, include customer IDs and preserve workspace boundaries", async () => {
+  const workspace = randomUUID(),
+    other = randomUUID(),
+    prefix = randomUUID().toUpperCase();
+  await connection.query(
+    "INSERT INTO workspaces(id,name) VALUES($1,'Order filter test'),($2,'Other filter test')",
+    [workspace, other],
+  );
+  const { cookie } = await account("admin", workspace);
+  await connection.query(
+    `INSERT INTO orders(workspace_id,order_number,customer_id,total_amount,status,created_at)
+    SELECT $1,'AUDIT-'||$2||'-'||n,CASE WHEN n=1 THEN 424242 ELSE 1 END,1,'pending',
+    CASE WHEN n=1 THEN timestamp '2026-02-01 12:00:00' ELSE timestamp '2026-10-27 12:00:00' END FROM generate_series(1,620) n`,
+    [workspace, prefix],
+  );
+  await connection.query(
+    "INSERT INTO orders(workspace_id,order_number,customer_id,total_amount) VALUES($1,$2,424242,1)",
+    [other, "OTHER-" + prefix],
+  );
+  const result = await request(
+    "/api/operations/orders?limit=500&q=424242&from=2026-02-01&to=2026-02-01",
+    undefined,
+    cookie,
+  );
+  assert.equal(result.status, 200);
+  const page = await result.json();
+  assert.equal(page.total, 1);
+  assert.equal(page.items[0].orderNumber, "AUDIT-" + prefix + "-1");
+  const exact = await (
+    await request(
+      "/api/operations/orders?limit=10&identifier=" +
+        encodeURIComponent(("AUDIT-" + prefix + "-1").toLowerCase()),
+      undefined,
+      cookie,
+    )
+  ).json();
+  assert.equal(exact.items[0].id, page.items[0].id);
+  for (const query of ["from=2026-02-30", "from=2026-10-28&to=2026-10-01"]) {
+    assert.equal(
+      (
+        await request(
+          "/api/operations/orders?limit=10&" + query,
+          undefined,
+          cookie,
+        )
+      ).status,
+      400,
+    );
+    assert.equal(
+      (
+        await request(
+          "/api/operations/orders/export/report?" + query,
+          undefined,
+          cookie,
+        )
+      ).status,
+      400,
+    );
+  }
+});
+
+test("review reads enforce role policy and resolved cases cannot be acknowledged through the API", async () => {
+  const workspace = randomUUID();
+  await connection.query(
+    "INSERT INTO workspaces(id,name) VALUES($1,'Review boundary test')",
+    [workspace],
+  );
+  const admin = await account("admin", workspace),
+    standard = await account("user", workspace);
+  const shipment = (
+    await connection.query(
+      "INSERT INTO shipments(workspace_id,tracking_number,origin,destination,status) VALUES($1,$2,'A','B','exception') RETURNING id",
+      [workspace, "REVIEW-" + randomUUID()],
+    )
+  ).rows[0].id;
+  const review = (
+    await connection.query(
+      "INSERT INTO review_cases(workspace_id,shipment_id,state) VALUES($1,$2,'resolved') RETURNING id",
+      [workspace, shipment],
+    )
+  ).rows[0].id;
+  for (const path of [
+    "/api/operations/reviews",
+    "/api/operations/reviews/" + review + "/actions",
+  ])
+    assert.equal((await request(path, undefined, standard.cookie)).status, 403);
+  assert.equal(
+    (await request("/api/operations/notifications", undefined, standard.cookie))
+      .status,
+    200,
+  );
+  assert.equal(
+    (await request("/api/operations/reviews?limit=0", undefined, admin.cookie))
+      .status,
+    400,
+  );
+  const path = "/api/operations/reviews/" + review + "/actions";
+  assert.equal(
+    (await request(path, { action: "acknowledge", version: 0 }, admin.cookie))
+      .status,
+    409,
+  );
+  assert.equal(
+    (await request(path, { action: "reopen", version: 0 }, admin.cookie))
+      .status,
+    200,
+  );
+  assert.equal(
+    (await request(path, { action: "reopen", version: 1 }, admin.cookie))
+      .status,
+    409,
+  );
 });

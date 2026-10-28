@@ -50,11 +50,17 @@ export const exportShipmentsReport = async (
   req: AuthRequest,
   res: Response,
 ) => {
+  let where;
+  try {
+    where = recordFilters("shipments", req);
+  } catch {
+    return res.status(400).json({ error: "Invalid report filters" });
+  }
   try {
     const allShipments = await db
       .select()
       .from(shipments)
-      .where(recordFilters("shipments", req))
+      .where(where)
       .orderBy(desc(shipments.id))
       .limit(10001);
 
@@ -124,11 +130,17 @@ export const exportShipmentsReport = async (
 };
 
 export const exportOrdersReport = async (req: AuthRequest, res: Response) => {
+  let where;
+  try {
+    where = recordFilters("orders", req);
+  } catch {
+    return res.status(400).json({ error: "Invalid report filters" });
+  }
   try {
     const allOrders = await db
       .select()
       .from(orders)
-      .where(recordFilters("orders", req))
+      .where(where)
       .orderBy(desc(orders.id))
       .limit(10001);
 

@@ -2,9 +2,9 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 permissions:
   contents: read
@@ -43,7 +43,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: "22"
           cache: pnpm
           cache-dependency-path: server/pnpm-lock.yaml
 
@@ -54,9 +54,13 @@ jobs:
           pnpm test
           pnpm build
 
+  qualify-system:
+    name: Qualify PostgreSQL and gateway workflows
+    uses: ./.github/workflows/system-qualification.yml
+
   docker-build-push:
     name: Docker Build and Push
-    needs: build-and-test
+    needs: [build-and-test, qualify-system]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
 
