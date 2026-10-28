@@ -569,3 +569,50 @@ test("ownership inventory uses a read-only snapshot, preserves IDs and leaves ev
     client.release();
   }
 });
+
+test("purchase pages and catalogs expose records beyond their first bounded page without crossing organizations", async () => {
+  const path = "/supply-chain/api/v1/orders",
+    prefix = randomUUID();
+  await db.query(
+    `INSERT INTO supply_chain.purchase_orders(id,organization_id,supplier_id,order_number,status,total_amount,created_at,dispatch_state)
+    SELECT gen_random_uuid(),$1,$2,'PAGE-'||$3||'-'||n,'draft',1,now()-interval '1 day'*n,'disabled' FROM generate_series(1,51) n`,
+    [a.org, a.supplier, prefix],
+  );
+  await db.query(
+    `INSERT INTO supply_chain.products(id,organization_id,sku,name,unit_price)
+    SELECT gen_random_uuid(),$1,'PAGE-'||$2||'-'||n,'Page product '||lpad(n::text,3,'0'),1 FROM generate_series(1,101) n`,
+    [a.org, prefix],
+  );
+  const orders = await (await call(a, path + "?offset=50")).json();
+  assert.equal(orders.offset, 50);
+  assert(orders.total >= 51);
+  assert(
+    orders.items.some((o: any) => o.orderNumber === "PAGE-" + prefix + "-51"),
+  );
+  const first = await (
+    await call(a, path + "/products?paged=true&offset=0")
+  ).json();
+  const second = await (
+    await call(a, path + "/products?paged=true&offset=100")
+  ).json();
+  assert.equal(first.items.length, 100);
+  assert.equal(first.total, 102);
+  assert.equal(second.items.length, 2);
+  assert.equal(
+    new Set([...first.items, ...second.items].map((r: any) => r.id)).size,
+    102,
+  );
+  const others = await (
+    await call(b, path + "/products?paged=true&offset=0")
+  ).json();
+  assert.equal(others.total, 1);
+  assert.equal(others.items[0].id, b.product);
+  assert(
+    Array.isArray(await (await call(a, path + "/products")).json()),
+    "legacy array clients remain supported",
+  );
+  assert.equal(
+    (await call(a, path + "/products?paged=true&offset=-1")).status,
+    400,
+  );
+});

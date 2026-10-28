@@ -91,9 +91,10 @@ public class OrdersController(ApplicationDbContext context,IConfiguration config
  [HttpGet]
  public async Task<IActionResult> List([FromQuery]int offset=0,CancellationToken ct=default) {
   if(!context.OrganizationId.HasValue)return Forbid();
-  if(offset<0||offset>10000)return BadRequest(new{error="Invalid page"});
+  if(offset<0||offset>1000000)return BadRequest(new{error="Invalid page"});
+  var total=await context.PurchaseOrders.CountAsync(ct);
   var orders=await context.PurchaseOrders.OrderByDescending(o=>o.CreatedAt).ThenBy(o=>o.Id).Skip(offset).Take(50).ToListAsync(ct);
-  return Ok(new{items=orders.Select(o=>new{o.Id,o.OrderNumber,o.SupplierId,totalAmount=Money(o.TotalAmount),o.Currency,o.Status,o.DispatchState,o.CreatedAt}),offset,limit=50});
+  return Ok(new{items=orders.Select(o=>new{o.Id,o.OrderNumber,o.SupplierId,totalAmount=Money(o.TotalAmount),o.Currency,o.Status,o.DispatchState,o.CreatedAt}),offset,limit=50,total});
  }
  [HttpGet("{id:guid}/items")]
  public async Task<IActionResult> Items(Guid id,CancellationToken ct) {
@@ -142,13 +143,25 @@ public class OrdersController(ApplicationDbContext context,IConfiguration config
   return Ok(new{receiptId=receipt,status=order.Status,duplicate=false});
  }
  [HttpGet("suppliers")]
- public async Task<IActionResult> Suppliers(CancellationToken ct)=>!context.OrganizationId.HasValue?Forbid():Ok(await context.Suppliers.OrderBy(s=>s.Name).Take(100).Select(s=>new{s.Id,s.Name,s.Status}).ToListAsync(ct));
- [HttpGet("products")]
- public async Task<IActionResult> Products(CancellationToken ct) {
+ public async Task<IActionResult> Suppliers(CancellationToken ct,[FromQuery]int offset=0,[FromQuery]bool paged=false) {
   if(!context.OrganizationId.HasValue)return Forbid();
-  var products=await context.Products.OrderBy(s=>s.Name).Take(100).ToListAsync(ct);
-  return Ok(products.Select(s=>new{s.Id,s.Name,s.Sku,unitPrice=Money(s.UnitPrice)}));
+  if(offset<0||offset>1000000)return BadRequest(new{error="Invalid page"});
+  var items=await context.Suppliers.OrderBy(s=>s.Name).ThenBy(s=>s.Id).Skip(offset).Take(100).Select(s=>new{s.Id,s.Name,s.Status}).ToListAsync(ct);
+  return paged?Ok(new{items,total=await context.Suppliers.CountAsync(ct),offset,limit=100}):Ok(items);
+ }
+ [HttpGet("products")]
+ public async Task<IActionResult> Products(CancellationToken ct,[FromQuery]int offset=0,[FromQuery]bool paged=false) {
+  if(!context.OrganizationId.HasValue)return Forbid();
+  if(offset<0||offset>1000000)return BadRequest(new{error="Invalid page"});
+  var products=await context.Products.OrderBy(s=>s.Name).ThenBy(s=>s.Id).Skip(offset).Take(100).ToListAsync(ct);
+  var items=products.Select(s=>new{s.Id,s.Name,s.Sku,unitPrice=Money(s.UnitPrice)}).ToArray();
+  return paged?Ok(new{items,total=await context.Products.CountAsync(ct),offset,limit=100}):Ok(items);
  }
  [HttpGet("warehouses")]
- public async Task<IActionResult> Warehouses(CancellationToken ct)=>!context.OrganizationId.HasValue?Forbid():Ok(await context.Warehouses.OrderBy(w=>w.Name).Take(100).Select(w=>new{w.Id,w.Name}).ToListAsync(ct));
+ public async Task<IActionResult> Warehouses(CancellationToken ct,[FromQuery]int offset=0,[FromQuery]bool paged=false) {
+  if(!context.OrganizationId.HasValue)return Forbid();
+  if(offset<0||offset>1000000)return BadRequest(new{error="Invalid page"});
+  var items=await context.Warehouses.OrderBy(w=>w.Name).ThenBy(w=>w.Id).Skip(offset).Take(100).Select(w=>new{w.Id,w.Name}).ToListAsync(ct);
+  return paged?Ok(new{items,total=await context.Warehouses.CountAsync(ct),offset,limit=100}):Ok(items);
+ }
 }

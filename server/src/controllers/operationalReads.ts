@@ -66,17 +66,17 @@ export function recordFilters(
             ilike(shipments.destination, term),
             ilike(shipments.carrier, term),
           )!
-        : ilike(orders.orderNumber, term),
+        : or(
+            ilike(orders.orderNumber, term),
+            sql`${orders.customerId}::text ILIKE ${term}`,
+          )!,
     );
   }
   if (q.identifier !== undefined) {
     if (typeof q.identifier !== "string" || q.identifier.length > 100)
       throw new Error("Invalid identifier");
     conditions.push(
-      eq(
-        kind === "shipments" ? shipments.trackingNumber : orders.orderNumber,
-        q.identifier,
-      ),
+      sql`lower(${kind === "shipments" ? shipments.trackingNumber : orders.orderNumber}) = lower(${q.identifier})`,
     );
   }
   if (q.status) {
@@ -100,10 +100,18 @@ export function recordFilters(
       if (value) {
         if (typeof value !== "string" || value.length > 100)
           throw new Error("Invalid filter");
-        if(query==='carrier' && value==='Not supplied') conditions.push(sql`trim(coalesce(${shipments.carrier},''))=''`);
-        else if(query==='mode' && value==='Unknown') conditions.push(sql`(${shipments.transportMode} IS NULL OR lower(${shipments.transportMode}) NOT IN ('road','rail','air','sea','ocean','parcel','other'))`);
-        else if(query==='mode' && value.toLowerCase()==='sea') conditions.push(inArray(shipments.transportMode,['sea','ocean']));
-        else conditions.push(eq(column,query==='mode'?value.toLowerCase():value));
+        if (query === "carrier" && value === "Not supplied")
+          conditions.push(sql`trim(coalesce(${shipments.carrier},''))=''`);
+        else if (query === "mode" && value === "Unknown")
+          conditions.push(
+            sql`(${shipments.transportMode} IS NULL OR lower(${shipments.transportMode}) NOT IN ('road','rail','air','sea','ocean','parcel','other'))`,
+          );
+        else if (query === "mode" && value.toLowerCase() === "sea")
+          conditions.push(inArray(shipments.transportMode, ["sea", "ocean"]));
+        else
+          conditions.push(
+            eq(column, query === "mode" ? value.toLowerCase() : value),
+          );
       }
     }
   for (const key of ["from", "to"] as const)
@@ -112,7 +120,8 @@ export function recordFilters(
       if (
         typeof value !== "string" ||
         !/^\d{4}-\d{2}-\d{2}$/.test(value) ||
-        Number.isNaN(Date.parse(value))
+        Number.isNaN(Date.parse(value)) ||
+        new Date(value).toISOString().slice(0, 10) !== value
       )
         throw new Error("Invalid date");
       if (key === "from")
@@ -125,6 +134,8 @@ export function recordFilters(
           ),
         );
     }
+  if (typeof q.from === "string" && typeof q.to === "string" && q.from > q.to)
+    throw new Error("Date range is reversed");
   return and(...conditions);
 }
 export const boundedList =
@@ -265,7 +276,14 @@ export async function shipmentEvents(req: AuthRequest, res: Response) {
       receivedAt,
     } = logisticsEvents;
     const items = await db
-      .select({ id: eventId, provider, eventType, occurredAt, receivedAt, payload: logisticsEvents.payload })
+      .select({
+        id: eventId,
+        provider,
+        eventType,
+        occurredAt,
+        receivedAt,
+        payload: logisticsEvents.payload,
+      })
       .from(logisticsEvents)
       .where(
         and(
@@ -278,14 +296,43 @@ export async function shipmentEvents(req: AuthRequest, res: Response) {
       .limit(Math.min(bounds.limit, 100))
       .offset(bounds.offset);
     res.json({
-      items: items.map(({payload, ...item}) => {
+      items: items.map(({ payload, ...item }) => {
         // Only the explicitly recorded fields are exposed; raw provider payloads stay server-side.
         let event: any;
-        try { event = JSON.parse(payload); } catch { event = null; }
+        try {
+          event = JSON.parse(payload);
+        } catch {
+          event = null;
+        }
         const loc = event?.location;
-        const position = loc && typeof loc.latitude === "number" && Number.isFinite(loc.latitude) && Math.abs(loc.latitude) <= 90 && typeof loc.longitude === "number" && Number.isFinite(loc.longitude) && Math.abs(loc.longitude) <= 180 ? {lat:loc.latitude,lng:loc.longitude} : null;
-        const statuses: Record<string,string> = {pending:"Pending",in_transit:"In transit",picked_up:"Picked up",out_for_delivery:"Out for delivery",delivered:"Delivered",delayed:"Delayed",exception:"Exception",cancelled:"Cancelled"};
-        return {...item, position, status: typeof event?.status === "string" ? statuses[event.status] ?? null : null};
+        const position =
+          loc &&
+          typeof loc.latitude === "number" &&
+          Number.isFinite(loc.latitude) &&
+          Math.abs(loc.latitude) <= 90 &&
+          typeof loc.longitude === "number" &&
+          Number.isFinite(loc.longitude) &&
+          Math.abs(loc.longitude) <= 180
+            ? { lat: loc.latitude, lng: loc.longitude }
+            : null;
+        const statuses: Record<string, string> = {
+          pending: "Pending",
+          in_transit: "In transit",
+          picked_up: "Picked up",
+          out_for_delivery: "Out for delivery",
+          delivered: "Delivered",
+          delayed: "Delayed",
+          exception: "Exception",
+          cancelled: "Cancelled",
+        };
+        return {
+          ...item,
+          position,
+          status:
+            typeof event?.status === "string"
+              ? (statuses[event.status] ?? null)
+              : null,
+        };
       }),
       limit: Math.min(bounds.limit, 100),
       offset: bounds.offset,

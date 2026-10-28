@@ -1,9 +1,9 @@
-import {hashPassword,verifyPassword} from './services/passwords';
+import { hashPassword, verifyPassword } from "./services/passwords";
 import assert from "node:assert/strict";
 import test from "node:test";
 import app from "./app";
 import { db, connection } from "./config/db";
-import { readBounds } from "./controllers/operationalReads";
+import { readBounds, recordFilters } from "./controllers/operationalReads";
 import jwt from "jsonwebtoken";
 import {
   assertProductionConfiguration,
@@ -11,6 +11,7 @@ import {
   getJwtSecret,
 } from "./config/security";
 import crypto from "node:crypto";
+import { gzipSync } from "node:zlib";
 import { escapeHtml } from "./controllers/operationsController";
 import { rateLimit } from "./middleware/rateLimit";
 import { Request, Response } from "express";
@@ -82,10 +83,51 @@ test("API errors return JSON and unsafe cross-site cookie requests are rejected"
   }
 });
 
+test("trailing bytes after a compressed request cannot terminate the API process", async () => {
+  const server = app.listen(0);
+  try {
+    const address = server.address();
+    assert(address && typeof address === "object");
+    const base = `http://127.0.0.1:${address.port}`;
+    const response = await fetch(base + "/api/auth/login", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Content-Encoding": "gzip",
+      },
+      body: Buffer.concat([
+        gzipSync(Buffer.from('{"email":"invalid","password":"short"}')),
+        Buffer.from("invalid trailing compressed bytes"),
+      ]),
+    });
+    assert.equal(response.status, 400);
+    await response.arrayBuffer();
+    assert.equal((await fetch(base + "/health")).status, 200);
+  } finally {
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  }
+});
+
 test("HTML reports escape stored data", () => {
   assert.equal(
     escapeHtml(`<script>alert("x")</script> & 'quoted'`),
     "&lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt; &amp; &#39;quoted&#39;",
+  );
+});
+test("filters reject normalized impossible dates and reversed ranges", () => {
+  const user = { workspaceId: "00000000-0000-4000-8000-000000000002" };
+  for (const query of [
+    { from: "2026-02-30" },
+    { to: "2026-02-29" },
+    { from: "2026-10-28", to: "2026-10-01" },
+  ]) {
+    assert.throws(() => recordFilters("orders", { user, query } as any));
+  }
+  assert.doesNotThrow(() =>
+    recordFilters("orders", {
+      user,
+      query: { from: "2024-02-29", to: "2024-02-29" },
+    } as any),
   );
 });
 
@@ -165,6 +207,7 @@ test("GET /health returns ok", async () => {
     assert.equal(typeof health.revision, "string");
     assert.equal(res.headers.get("x-content-type-options"), "nosniff");
     assert.equal(res.headers.get("x-frame-options"), "DENY");
+    assert.equal(res.headers.get("cache-control"), "private, no-store");
   } finally {
     await new Promise<void>((resolve, reject) => {
       server.close((err) => (err ? reject(err) : resolve()));
@@ -492,7 +535,6 @@ test("legacy UTC timestamp decoder is independent of the process timezone", asyn
 });
 
 test("new password hashes distinguish 128-character inputs sharing the first 72 bytes", async () => {
-  
   const a = "a".repeat(100) + "x",
     b = "a".repeat(100) + "y";
   const hashed = await hashPassword(a);

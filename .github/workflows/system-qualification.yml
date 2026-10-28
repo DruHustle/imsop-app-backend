@@ -1,7 +1,6 @@
 name: Real stack qualification
 on:
-  pull_request:
-    branches: [main]
+  workflow_call:
   workflow_dispatch:
 permissions:
   contents: read
@@ -15,7 +14,7 @@ jobs:
           version: 10.4.1
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: "22"
           cache: pnpm
           cache-dependency-path: server/pnpm-lock.yaml
       - run: pnpm -C server install --frozen-lockfile

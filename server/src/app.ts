@@ -35,6 +35,11 @@ app.use((req, res, next) => {
 
 app.disable("x-powered-by");
 app.set("trust proxy", 1);
+// Session-bound responses must never be reused by a browser, proxy or CDN.
+app.use((_req, res, next) => {
+  res.setHeader("Cache-Control", "private, no-store");
+  next();
+});
 
 app.use(
   cors({
@@ -131,16 +136,14 @@ app.use(
           correlationId: _req.header("x-request-id"),
         }),
       );
-    res
-      .status(status)
-      .json({
-        error:
-          status === 400
-            ? "Invalid JSON body"
-            : status === 413
-              ? "Request body too large"
-              : "Internal server error",
-      });
+    res.status(status).json({
+      error:
+        status === 400
+          ? "Invalid JSON body"
+          : status === 413
+            ? "Request body too large"
+            : "Internal server error",
+    });
   },
 );
 
