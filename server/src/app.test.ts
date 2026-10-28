@@ -11,6 +11,7 @@ import {
   getJwtSecret,
 } from "./config/security";
 import crypto from "node:crypto";
+import { gzipSync } from "node:zlib";
 import { escapeHtml } from "./controllers/operationsController";
 import { rateLimit } from "./middleware/rateLimit";
 import { Request, Response } from "express";
@@ -79,6 +80,31 @@ test("API errors return JSON and unsafe cross-site cookie requests are rejected"
     await new Promise<void>((resolve, reject) =>
       server.close((err) => (err ? reject(err) : resolve())),
     );
+  }
+});
+
+test("trailing bytes after a compressed request cannot terminate the API process", async () => {
+  const server = app.listen(0);
+  try {
+    const address = server.address();
+    assert(address && typeof address === "object");
+    const base = `http://127.0.0.1:${address.port}`;
+    const response = await fetch(base + "/api/auth/login", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Content-Encoding": "gzip",
+      },
+      body: Buffer.concat([
+        gzipSync(Buffer.from('{"email":"invalid","password":"short"}')),
+        Buffer.from("invalid trailing compressed bytes"),
+      ]),
+    });
+    assert.equal(response.status, 400);
+    await response.arrayBuffer();
+    assert.equal((await fetch(base + "/health")).status, 200);
+  } finally {
+    await new Promise<void>((resolve) => server.close(() => resolve()));
   }
 });
 

@@ -918,3 +918,42 @@ test("review reads enforce role policy and resolved cases cannot be acknowledged
     409,
   );
 });
+
+test("review queue state filters and pages retain older cases in the authorized workspace", async () => {
+  const workspace = randomUUID();
+  await connection.query(
+    "INSERT INTO workspaces(id,name) VALUES($1,'Review queue pagination')",
+    [workspace],
+  );
+  const { cookie } = await account("engineer", workspace);
+  await connection.query(
+    `WITH s AS (INSERT INTO shipments(workspace_id,tracking_number,origin,destination,status)
+   SELECT $1,'QUEUE-'||n,'A','B','exception' FROM generate_series(1,105) n RETURNING id)
+   INSERT INTO review_cases(workspace_id,shipment_id,state) SELECT $1,id,'open' FROM s`,
+    [workspace],
+  );
+  const page = await (
+    await request(
+      "/api/operations/reviews?limit=100&offset=100&state=open",
+      undefined,
+      cookie,
+    )
+  ).json();
+  assert.equal(page.total, 105);
+  assert.equal(page.items.length, 5);
+  assert(page.items.every((r: any) => r.state === "open"));
+  const resolved = await (
+    await request(
+      "/api/operations/reviews?limit=100&state=resolved",
+      undefined,
+      cookie,
+    )
+  ).json();
+  assert.equal(resolved.total, 0);
+  assert.equal(resolved.items.length, 0);
+  assert.equal(
+    (await request("/api/operations/reviews?state=invalid", undefined, cookie))
+      .status,
+    400,
+  );
+});
