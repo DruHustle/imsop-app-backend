@@ -29,8 +29,7 @@ commit this file. JSON strings must escape `$` as `$$` for Compose interpolation
 
 From the runtime directory, validate with
 `sudo docker compose -f compose.yaml -f compose.runtime.json config --quiet`,
-then update with
-`sudo docker compose -f compose.yaml -f compose.runtime.json up -d --wait`.
+then update through the retention-aware deployment command below.
 If using this repository template directly, set `APP_IMAGE` to the tested tag.
 Verify readiness, anonymous authentication rejection and allowed/denied origins
 through both Oracle HTTPS and the frontend. Do not run destructive database
@@ -59,3 +58,55 @@ Recovery requires `RESET_DELIVERY_KEY` (64 hex characters, kept in the existing 
 Record installed image digest, mounted manifest identity and observed `/version` after an authorized rollout. Check first-party browser cookies, a permitted source read, a cross-workspace denial and report permissions using approved non-customer test accounts only. Backend compatibility precedes frontend release. Keep all internal ports private; the existing diagnostic mapping remains loopback-only. No provider accounts or customer records are needed for isolated qualification.
 
 Rollback rehearsal uses a previous **compatible scoped** image on the isolated stack, verifies version/readiness, then restores the candidate. Preserve migrations, outbox messages and operational records. An earlier image that exposes unassigned operational rows is not a safe security rollback. A destructive migration reversal is never implied by image rollback.
+
+## Image retention after every deployment
+
+Keep the installed release and one rehearsed compatible rollback. Once a deployment
+passes readiness and exact revision verification, discard older unused IMSOP
+images on both the development host and Oracle. Do not retain every historical
+release or rejected candidate. Shared base layers may remain while still used.
+
+Install `scripts/image_retention.py` and `scripts/deploy_compose.py` together in
+`/opt/imsop-app-backend/tools/` on Oracle. After qualification, backup, migration
+and rollback rehearsal, pin the new image in the existing manifest and run:
+
+```sh
+sudo python3 /opt/imsop-app-backend/tools/deploy_compose.py \
+  --project-directory /opt/imsop-app-backend \
+  --file compose.yaml --file compose.runtime.json --service app \
+  --origin http://127.0.0.1:11001 --expect-revision FULL_BACKEND_SHA
+```
+
+For the local development Compose stack, run from the backend repository:
+
+```sh
+python3 scripts/deploy_compose.py --file docker-compose.yml \
+  --origin http://127.0.0.1:8080 --build
+```
+
+The command snapshots each service's previous image before updating, waits for
+Compose and gateway readiness, and verifies contract 2 plus the exact SHA on
+Oracle. Only then does it update the mode-0600 `.image-retention.json` policy and
+remove older images. An unchanged service keeps its prior rollback. Failed
+deployment/verification leaves the existing policy and images intact. Both tools
+use `.deployment.lock`, shared with the existing Oracle release tooling. Keep the
+policy across releases; missing rollback images stop cleanup rather than guessing.
+This command does not replace qualification, backups, migration procedures or
+compatibility rehearsal. Use the saved manifest to roll back if promotion fails.
+
+To review cleanup without deploying or restarting anything, use the cleanup tool
+with explicit installed current and rollback references. It defaults to a dry run:
+
+```sh
+python3 scripts/image_retention.py --keep CURRENT_IMAGE --keep ROLLBACK_IMAGE
+# After reviewing the plan, repeat with --apply.
+```
+
+Cleanup recognizes only the explicit IMSOP repository names and the exact
+`IMSOP backend` image title. Every running or stopped container's image is
+protected, including platform-manifest aliases. Images shared with other
+repositories are retained. Ownership and references are checked again immediately
+before removal by immutable ID, without `--force` or parent-image pruning.
+Docker conflicts are reported, never overridden. Containers, volumes, database
+data, backups, registry artifacts and unrelated applications are not removed.
+No global `docker system prune` or `docker image prune -a` is used.

@@ -62,6 +62,9 @@ jobs:
     - name: Run Tests
       run: pnpm -C server test
 
+    - name: Check image retention safety boundaries
+      run: python3 -m unittest discover -s scripts -p 'test_image_retention.py' -v
+
   # Optional: Add a deploy job if you have a target environment
   # deploy:
   #   needs: build-and-test
