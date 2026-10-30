@@ -79,6 +79,10 @@ publish/
 # OS files
 .DS_Store
 Thumbs.db
+__pycache__/
+.deployment.lock
+.image-retention.json
+.image-retention.tmp
 
 # Environment Variables
 .env
