@@ -38,6 +38,18 @@ class RetentionTests(unittest.TestCase):
         self.assertEqual(len(result["retained"]), 2)
         self.assertEqual(calls, [])
 
+    def test_disappearing_container_retries_a_complete_snapshot(self):
+        with patch.object(retention, "docker", side_effect=["gone", RuntimeError("removed"), "present", "present sha256:used local:tag \n"]) as docker:
+            result = retention.container_images()
+        self.assertEqual(result, {"present": {"image": "sha256:used", "reference": "local:tag", "service": ""}})
+        self.assertEqual(docker.call_count, 4)
+
+    def test_persistent_snapshot_failure_stops_without_partial_protection(self):
+        with patch.object(retention, "docker", side_effect=["gone", RuntimeError("removed")] * 3) as docker:
+            with self.assertRaises(RuntimeError):
+                retention.container_images()
+        self.assertEqual(docker.call_count, 6)
+
     def test_dry_run_never_removes_images(self):
         result, calls = self.run_cleanup([OLD], apply=False)
         self.assertEqual(len(result["candidates"]), 1)

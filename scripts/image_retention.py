@@ -59,12 +59,21 @@ def container_images(project=None):
     args = ["container", "ls", "--all", "--quiet"]
     if project:
         args += ["--filter", "label=com.docker.compose.project=" + project]
-    ids = docker(*args).split()
-    if not ids:
-        return {}
-    # Request only identities and Compose service labels, never environments.
-    rows = docker("container", "inspect", "--format",
-                  '{{.Id}} {{.Image}} {{.Config.Image}} {{index .Config.Labels "com.docker.compose.service"}}', *ids)
+    # Short-lived containers may disappear between list and inspect. Retry a
+    # fresh snapshot; never use a partial response as permission to delete.
+    for attempt in range(3):
+        ids = docker(*args).split()
+        if not ids:
+            return {}
+        try:
+            # Request identities and labels only, never environments. A normal
+            # non-Compose container may have a null Labels map.
+            rows = docker("container", "inspect", "--format",
+                          '{{.Id}} {{.Image}} {{.Config.Image}} {{with .Config.Labels}}{{index . "com.docker.compose.service"}}{{end}}', *ids)
+            break
+        except RuntimeError:
+            if attempt == 2:
+                raise
     images = {}
     for line in rows.splitlines():
         value = line.split(maxsplit=3)
